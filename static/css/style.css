@@ -2,7 +2,10 @@
 :root {
     --font-primary: "Nunito", sans-serif;
     --font-secondary: "Roboto", sans-serif;
-    --bg-image: url(https://github.com/ecemgo/mini-samples-great-tricks/assets/13468728/aa462558-0106-4268-9864-d34a4f35531f);
+    
+    /* ===== ФОН ===== */
+    --bg-image: url(../img/fon.jpg);
+    
     --glass-bg: rgba(16, 21, 61, 0.5);
     --glass-border: rgba(255, 255, 255, 0.5);
     --glass-shadow: 0 0.5px 0 1px rgba(255, 255, 255, 0.23) inset,
@@ -57,6 +60,7 @@ main {
     box-shadow: var(--glass-shadow);
     overflow: hidden;
     z-index: 10;
+    position: relative;
 }
 
 /* ===== Navigation Menu ===== */
@@ -71,6 +75,7 @@ main {
     font-family: inherit;
     transition: all var(--transition-speed) ease;
     gap: 8px;
+    position: relative;
 }
 
 .menu-header {
@@ -93,35 +98,6 @@ main {
 }
 
 /* ===== Разделители меню ===== */
-.menu-divider {
-    height: 1px;
-    background: var(--glass-border);
-    margin: 4px 12px;
-    opacity: 0.3;
-}
-
-.menu-divider-thick {
-    height: 2px;
-    background: var(--glass-border);
-    margin: 6px 12px;
-    opacity: 0.2;
-    border-radius: 2px;
-}
-
-.menu-divider-dashed {
-    height: 0;
-    border-top: 1px dashed var(--glass-border);
-    margin: 4px 12px;
-    opacity: 0.3;
-}
-
-.menu-divider-dotted {
-    height: 0;
-    border-top: 1px dotted var(--glass-border);
-    margin: 4px 12px;
-    opacity: 0.3;
-}
-
 .menu-divider-gradient {
     height: 2px;
     margin: 4px 12px;
@@ -184,7 +160,9 @@ main {
 .menu-footer {
     margin-top: auto;
     padding-top: 12px;
-    border-top: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .menu-footer .menu-item {
@@ -195,30 +173,73 @@ main {
 .menu-footer .menu-item:hover {
     opacity: 1;
 }
+
+/* ===== Вертикальная линия у правого края меню ===== */
+.main-menu::after {
+    content: '';
+    position: absolute;
+    top: 20px;
+    right: -1px;
+    width: 2px;
+    height: calc(100% - 40px);
+    background: linear-gradient(180deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.15) 10%, 
+        rgba(255, 255, 255, 0.15) 90%, 
+        transparent
+    );
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 5;
+}
+
 /* ===== Content Area ===== */
 .content {
     display: grid;
     grid-template-columns: 1fr;
     min-height: 450px;
     overflow: hidden;
+    position: relative;
 }
 
 .left-content {
-    padding: clamp(20px, 3vw, 35px);
+    padding: 20px;
     color: var(--text-color);
     border-radius: 0 15px 15px 0;
     overflow-y: auto;
     transition: all var(--transition-speed) ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 .right-content {
     display: none;
 }
 
+/* ===== Внутренний блок-обводка для контента ===== */
+.content-wrapper {
+    flex: 1;
+    padding: 20px 25px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    position: relative;
+    transition: all var(--transition-speed) ease;
+    background: rgba(255, 255, 255, 0.03);
+    min-height: 200px;
+}
+
+.content-wrapper:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.03);
+}
+
 /* ===== Content Panels ===== */
 .content-panel {
     display: none;
     animation: fadeIn 0.3s ease;
+    position: relative;
 }
 
 .content-panel.active {
@@ -359,6 +380,10 @@ main {
         transform: none;
     }
 
+    .menu-divider-gradient {
+        display: none;
+    }
+
     .menu-footer {
         display: none;
     }
@@ -369,6 +394,16 @@ main {
 
     .content-panel h2 {
         font-size: 1.4rem;
+    }
+
+    .main-menu::after {
+        display: none;
+    }
+
+    .content-wrapper {
+        padding: 15px 18px;
+        min-height: 150px;
+        border-radius: 8px;
     }
 }
 
@@ -395,6 +430,20 @@ main {
 
     .content {
         min-height: 350px;
+    }
+
+    .content-wrapper {
+        padding: 12px 15px;
+        min-height: 120px;
+        border-radius: 6px;
+    }
+
+    .content-panel h2 {
+        font-size: 1.1rem;
+    }
+
+    .content-panel p {
+        font-size: 0.9rem;
     }
 }
 
@@ -426,4 +475,3 @@ main {
         --menu-item-active: rgba(255, 255, 255, 0.2);
     }
 }
-
