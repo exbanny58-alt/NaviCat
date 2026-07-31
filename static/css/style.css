@@ -92,6 +92,50 @@ main {
     flex: 1;
 }
 
+/* ===== Разделители меню ===== */
+.menu-divider {
+    height: 1px;
+    background: var(--glass-border);
+    margin: 4px 12px;
+    opacity: 0.3;
+}
+
+.menu-divider-thick {
+    height: 2px;
+    background: var(--glass-border);
+    margin: 6px 12px;
+    opacity: 0.2;
+    border-radius: 2px;
+}
+
+.menu-divider-dashed {
+    height: 0;
+    border-top: 1px dashed var(--glass-border);
+    margin: 4px 12px;
+    opacity: 0.3;
+}
+
+.menu-divider-dotted {
+    height: 0;
+    border-top: 1px dotted var(--glass-border);
+    margin: 4px 12px;
+    opacity: 0.3;
+}
+
+.menu-divider-gradient {
+    height: 2px;
+    margin: 4px 12px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    opacity: 0.5;
+    border-radius: 2px;
+    transition: all var(--transition-speed) ease;
+}
+
+.menu-divider-gradient:hover {
+    opacity: 0.8;
+    transform: scaleY(1.5);
+}
+
 .menu-item {
     display: flex;
     align-items: center;
@@ -151,7 +195,6 @@ main {
 .menu-footer .menu-item:hover {
     opacity: 1;
 }
-
 /* ===== Content Area ===== */
 .content {
     display: grid;
@@ -383,3 +426,4 @@ main {
         --menu-item-active: rgba(255, 255, 255, 0.2);
     }
 }
+

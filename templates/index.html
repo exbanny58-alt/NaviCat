@@ -3,37 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Player</title>
+    <title>DayzM</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <main>
         <nav class="main-menu">
-            <div class="menu-header">Navigation</div>
+            <div class="menu-header">DayzM</div>
             <div class="menu-items">
                 <button class="menu-item active" data-tab="server">
                     <i class="fas fa-server"></i>
                     <span>Сервер</span>
                 </button>
+                
+                <div class="menu-divider-gradient"></div>
+                
                 <button class="menu-item" data-tab="client">
                     <i class="fas fa-desktop"></i>
                     <span>Клиент</span>
                 </button>
+                
+                <div class="menu-divider-gradient"></div>
+                
                 <button class="menu-item" data-tab="mods">
                     <i class="fas fa-puzzle-piece"></i>
                     <span>Моды</span>
                 </button>
+                
+                <div class="menu-divider-gradient"></div>
+                
                 <button class="menu-item" data-tab="editors">
                     <i class="fas fa-code"></i>
                     <span>Редакторы</span>
                 </button>
             </div>
             <div class="menu-footer">
-                <button class="menu-item" data-tab="settings">
+                <!-- Разделитель сверху -->
+                <div class="menu-divider-gradient"></div>
+                
+                <button class="menu-item settings-item" data-tab="settings">
                     <i class="fas fa-cog"></i>
                     <span>Настройки</span>
                 </button>
+                
+                <!-- Разделитель снизу -->
+                <div class="menu-divider-gradient"></div>
             </div>
         </nav>
         <section class="content">
@@ -42,35 +57,35 @@
                 <div class="content-panel active" id="panel-server">
                     <h2><i class="fas fa-server" style="margin-right: 12px; opacity: 0.7;"></i>Сервер</h2>
                     <p class="subtitle">Управление серверной частью приложения</p>
-                    <p>Здесь будет отображаться информация о состоянии сервера...</p>
+                    <p>Здесь будет отображаться информация о состоянии сервера, активных подключениях, нагрузке и других системных параметрах. Вы можете отслеживать производительность и управлять сервисами.</p>
                 </div>
 
                 <!-- Клиент -->
                 <div class="content-panel" id="panel-client">
                     <h2><i class="fas fa-desktop" style="margin-right: 12px; opacity: 0.7;"></i>Клиент</h2>
                     <p class="subtitle">Клиентские подключения и сессии</p>
-                    <p>Здесь отображаются активные клиентские сессии...</p>
+                    <p>Здесь отображаются активные клиентские сессии, информация о пользователях, их статус, версии клиентов и другие данные для мониторинга клиентской активности.</p>
                 </div>
 
                 <!-- Моды -->
                 <div class="content-panel" id="panel-mods">
                     <h2><i class="fas fa-puzzle-piece" style="margin-right: 12px; opacity: 0.7;"></i>Моды</h2>
                     <p class="subtitle">Управление модификациями</p>
-                    <p>Панель управления модами: установка, обновление...</p>
+                    <p>Панель управления модами: установка, обновление, активация и деактивация модификаций. Список установленных модов, их совместимость и текущий статус.</p>
                 </div>
 
                 <!-- Редакторы -->
                 <div class="content-panel" id="panel-editors">
                     <h2><i class="fas fa-code" style="margin-right: 12px; opacity: 0.7;"></i>Редакторы</h2>
                     <p class="subtitle">Инструменты для разработки</p>
-                    <p>Доступ к встроенным редакторам...</p>
+                    <p>Доступ к встроенным редакторам: редактирование конфигураций, скриптов, ресурсов и других файлов проекта. Удобные инструменты для разработчиков и администраторов.</p>
                 </div>
 
                 <!-- Настройки -->
                 <div class="content-panel" id="panel-settings">
                     <h2><i class="fas fa-cog" style="margin-right: 12px; opacity: 0.7;"></i>Настройки</h2>
                     <p class="subtitle">Общие настройки приложения</p>
-                    <p>Настройки интерфейса, параметры подключения...</p>
+                    <p>Настройки интерфейса, параметры подключения, управление пользователями и другие глобальные конфигурации системы.</p>
                 </div>
             </div>
             <div class="right-content"></div>
