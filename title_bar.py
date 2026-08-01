@@ -11,9 +11,10 @@ class CustomTitleBar(QWidget):
         self.setFixedHeight(44)
         self.setStyleSheet("background-color: #1a1a1a;")
 
-        # Кнопка-стрелка
+        # Кнопка-стрелка для меню
         self.toggle_btn = QPushButton()
-        self.toggle_btn.setIcon(SVGIcon.svg_to_icon(SVGIcon.create_arrow_left_icon("#aaaaaa"), size=20))
+        # Используем новую иконку для открытия меню (по умолчанию меню открыто)
+        self.toggle_btn.setIcon(SVGIcon.svg_to_icon(SVGIcon.create_menu_close_icon(), size=20))
         self.toggle_btn.setIconSize(QSize(20, 20))
         self.toggle_btn.setToolTip("Свернуть меню")
         self.toggle_btn.setStyleSheet("""
@@ -28,6 +29,24 @@ class CustomTitleBar(QWidget):
             }
         """)
         self.toggle_btn.clicked.connect(self.parent.toggle_menu)
+
+        # Кнопка музыки
+        self.music_btn = QPushButton()
+        self.music_btn.setIcon(SVGIcon.svg_to_icon(SVGIcon.create_music_icon("#aaaaaa"), size=20))
+        self.music_btn.setIconSize(QSize(20, 20))
+        self.music_btn.setToolTip("Музыка")
+        self.music_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                padding: 4px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+        """)
+        self.music_btn.clicked.connect(self.parent.on_music_clicked)
 
         # Кнопки управления
         self.minimize_btn = QPushButton()
@@ -44,6 +63,7 @@ class CustomTitleBar(QWidget):
         layout.setSpacing(8)
         layout.addStretch()
         layout.addWidget(self.toggle_btn)
+        layout.addWidget(self.music_btn)
         layout.addWidget(self.minimize_btn)
         layout.addWidget(self.maximize_btn)
         layout.addWidget(self.close_btn)
@@ -109,10 +129,12 @@ class CustomTitleBar(QWidget):
 
     def update_toggle_icon(self, expanded):
         if expanded:
-            icon = SVGIcon.svg_to_icon(SVGIcon.create_arrow_left_icon("#aaaaaa"), size=20)
+            # Меню развёрнуто - показываем иконку закрытия (стрелка влево)
+            icon = SVGIcon.svg_to_icon(SVGIcon.create_menu_close_icon(), size=20)
             self.toggle_btn.setToolTip("Свернуть меню")
         else:
-            icon = SVGIcon.svg_to_icon(SVGIcon.create_arrow_right_icon("#aaaaaa"), size=20)
+            # Меню свёрнуто - показываем иконку открытия (стрелка вправо)
+            icon = SVGIcon.svg_to_icon(SVGIcon.create_menu_open_icon(), size=20)
             self.toggle_btn.setToolTip("Развернуть меню")
         self.toggle_btn.setIcon(icon)
 

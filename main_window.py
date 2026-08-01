@@ -19,6 +19,17 @@ class MatteBlackWindow(QWidget):
         self.menu_expanded = False
         self.menu_width_expanded = 160
         self.menu_width_collapsed = 64
+        
+        self.current_menu_index = -1  # Храним текущий выбранный индекс
+
+        # Список функций для создания иконок меню
+        self.icon_functions = [
+            SVGIcon.create_server_icon,
+            SVGIcon.create_client_icon,
+            SVGIcon.create_mods_icon,
+            SVGIcon.create_editors_icon,
+            SVGIcon.create_settings_icon,
+        ]
 
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -57,7 +68,8 @@ class MatteBlackWindow(QWidget):
             btn = QPushButton(name)
             btn.setObjectName(f"menu_{i}")
             btn.setCheckable(True)
-            btn.setAutoExclusive(True)
+            # Убираем autoExclusive, чтобы можно было снять выделение
+            # btn.setAutoExclusive(True)  # <-- Убираем эту строку
             svg = icon_func("#aaaaaa")
             icon = SVGIcon.svg_to_icon(svg, size=24)
             btn.setIcon(icon)
@@ -74,7 +86,8 @@ class MatteBlackWindow(QWidget):
         settings_btn = QPushButton("Настройки")
         settings_btn.setObjectName("menu_settings")
         settings_btn.setCheckable(True)
-        settings_btn.setAutoExclusive(True)
+        # Убираем autoExclusive
+        # settings_btn.setAutoExclusive(True)  # <-- Убираем эту строку
         svg_settings = SVGIcon.create_settings_icon("#aaaaaa")
         icon_settings = SVGIcon.svg_to_icon(svg_settings, size=24)
         settings_btn.setIcon(icon_settings)
@@ -108,6 +121,22 @@ class MatteBlackWindow(QWidget):
         settings_page = SettingsPage()
         self.content_stack.addWidget(settings_page)
 
+        # Страница музыки (индекс 5)
+        music_page = QWidget()
+        music_page.setStyleSheet("background-color: transparent;")
+        music_layout = QVBoxLayout()
+        music_layout.setContentsMargins(30, 30, 30, 30)
+        label = QLabel(
+            "<h1 style='color: #cccccc;'>Музыка</h1>"
+            "<p style='color: #666666;'>Здесь будет управление музыкой</p>"
+        )
+        label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        music_layout.addWidget(label)
+        music_layout.addStretch()
+        music_page.setLayout(music_layout)
+        self.content_stack.addWidget(music_page)
+        self.music_index = self.content_stack.count() - 1  # запоминаем индекс
+
         content_layout = QVBoxLayout()
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.addWidget(self.content_stack)
@@ -125,7 +154,6 @@ class MatteBlackWindow(QWidget):
         self.apply_menu_state()
 
         # Выбираем первый пункт
-        self.menu_buttons[0].setChecked(True)
         self.on_menu_clicked(0)
 
     # --- Вспомогательные методы ---
@@ -210,19 +238,37 @@ class MatteBlackWindow(QWidget):
         self.apply_menu_state()
 
     def on_menu_clicked(self, index):
+        """Обработчик клика по пункту меню."""
+        self.current_menu_index = index
         self.content_stack.setCurrentIndex(index)
-        icon_functions = [
-            SVGIcon.create_server_icon,
-            SVGIcon.create_client_icon,
-            SVGIcon.create_mods_icon,
-            SVGIcon.create_editors_icon,
-            SVGIcon.create_settings_icon,
-        ]
+        self._update_menu_icons(index)
+
+    def _update_menu_icons(self, active_index):
+        """Обновляет иконки меню: подсвечивает активный пункт."""
         for i, btn in enumerate(self.menu_buttons):
-            color = "#ffffff" if i == index else "#aaaaaa"
-            svg = icon_functions[i](color)
+            if i == active_index:
+                color = "#ffffff"
+                btn.setChecked(True)
+            else:
+                color = "#aaaaaa"
+                btn.setChecked(False)
+            svg = self.icon_functions[i](color)
             icon = SVGIcon.svg_to_icon(svg, size=24)
             btn.setIcon(icon)
+
+    def reset_menu_icons(self):
+        """Сбрасывает иконки меню в серый цвет и убирает выделение."""
+        self.current_menu_index = -1
+        for i, btn in enumerate(self.menu_buttons):
+            svg = self.icon_functions[i]("#aaaaaa")
+            icon = SVGIcon.svg_to_icon(svg, size=24)
+            btn.setIcon(icon)
+            btn.setChecked(False)
+
+    def on_music_clicked(self):
+        """Переключает на страницу музыки и сбрасывает состояние меню."""
+        self.reset_menu_icons()
+        self.content_stack.setCurrentIndex(self.music_index)
 
     def paintEvent(self, event):
         painter = QPainter(self)
