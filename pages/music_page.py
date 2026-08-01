@@ -10,6 +10,7 @@ from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush
 from PyQt6.QtSvg import QSvgRenderer
 from notifications import get_notification_manager
 from music_player import MusicPlayer
+from svg_icons import SVGIcon  # <-- ИМПОРТИРУЕМ SVGIcon
 
 
 class TrackItemWidget(QWidget):
@@ -171,10 +172,19 @@ class MusicPage(QWidget):
         # Создаём плеер
         self.player = MusicPlayer()
         
-        # Создаём иконки
-        self.music_icon = self._create_icon_from_svg(self._get_music_note_svg())
-        self.play_icon = self._create_icon_from_svg(self._get_play_svg())
-        self.pause_icon = self._create_icon_from_svg(self._get_pause_svg())
+        # Создаём иконки через SVGIcon
+        self.music_icon = SVGIcon.svg_to_icon(
+            SVGIcon.create_music_note_icon("#888888"), 
+            size=20
+        )
+        self.play_icon = SVGIcon.svg_to_icon(
+            SVGIcon.create_play_circle_icon("#888888"), 
+            size=24
+        )
+        self.pause_icon = SVGIcon.svg_to_icon(
+            SVGIcon.create_pause_circle_icon("#888888"), 
+            size=24
+        )
         
         # Храним кнопки и виджеты для обновления состояний
         self.play_buttons = {}
@@ -194,39 +204,8 @@ class MusicPage(QWidget):
         self.player.position_changed.connect(self._on_position_changed)
         self.player.duration_changed.connect(self._on_duration_changed)
         self.player.error_occurred.connect(self._on_player_error)
-        self.player.track_finished.connect(self._on_track_finished)  # <-- ПОДКЛЮЧАЕМ
+        self.player.track_finished.connect(self._on_track_finished)
     
-    def _get_music_note_svg(self):
-        """Возвращает SVG иконки ноты."""
-        return '''<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" id="Music-Note-Circle--Streamline-Flex-Remix" height="14" width="14">
-            <path fill="#888888" fill-rule="evenodd" d="M2.72444 2.72444C1.78946 3.65942 1.25 5.07504 1.25 7c0 1.92496 0.53946 3.3406 1.47444 4.2756C3.65942 12.2105 5.07504 12.75 7 12.75c1.92496 0 3.3406 -0.5395 4.2756 -1.4744C12.2105 10.3406 12.75 8.92496 12.75 7s-0.5395 -3.34058 -1.4744 -4.27556C10.3406 1.78946 8.92496 1.25 7 1.25s-3.34058 0.53946 -4.27556 1.47444Zm-0.88388 -0.88388C3.07308 0.60804 4.84496 0 7 0s3.9269 0.60804 5.1594 1.84056C13.392 3.07308 14 4.84496 14 7s-0.608 3.9269 -1.8406 5.1594C10.9269 13.392 9.15504 14 7 14c-2.15504 0 -3.92692 -0.608 -5.15944 -1.8406C0.60804 10.9269 0 9.15504 0 7c0 -2.15504 0.60804 -3.92692 1.84056 -5.15944Zm5.08762 1.38308h0.00118l0.00319 0.00002 0.01158 0.00005 0.03827 0.0002c0.02928 0.00018 0.067 0.00045 0.0935 0.00085 1.84606 0.02737 3.4528 1.58464 3.4528 3.45732 0 0.34518 -0.2798 0.625 -0.62496 0.625 -0.34518 0 -0.625 -0.27982 -0.625 -0.625 0 -0.99855 -0.76025 -1.89633 -1.72796 -2.14174v4.19634c0 0.00755 -0.00013 0.01506 -0.0004 0.02254 -0.00415 0.55919 -0.16651 1.08208 -0.55059 1.46618 -0.38913 0.3891 -0.92074 0.5507 -1.48823 0.5507 -0.56749 0 -1.0991 -0.1616 -1.48823 -0.5507 -0.38913 -0.38916 -0.55067 -0.92076 -0.55067 -1.48825 0 -0.5675 0.16154 -1.0991 0.55067 -1.48823 0.38913 -0.38914 0.92074 -0.55068 1.48823 -0.55068 0.27561 0 0.54275 0.0381 0.78922 0.12187V3.84863c0 -0.16617 0.06618 -0.32551 0.18391 -0.44279 0.11773 -0.11727 0.27732 -0.18284 0.44349 -0.1822Z" clip-rule="evenodd" stroke-width="1"></path>
-        </svg>'''
-    
-    def _get_play_svg(self):
-        """Возвращает SVG иконки Play."""
-        return '''<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" id="Play-Circle--Streamline-Solar-Ar" height="24" width="24">
-            <path stroke="#888888" d="M2 12a10 10 0 1 0 20 0 10 10 0 1 0 -20 0" stroke-width="1.5"></path>
-            <path d="M15.4137 10.941c0.7817 0.4616 0.7817 1.6564 0 2.118l-4.7202 2.7868C9.93371 16.2944 9 15.7105 9 14.7868l0 -5.57364c0 -0.92369 0.93371 -1.50755 1.6935 -1.05897l4.7202 2.78681Z" stroke="#888888" stroke-width="1.5"></path>
-        </svg>'''
-    
-    def _get_pause_svg(self):
-        """Возвращает SVG иконки Pause."""
-        return '''<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" id="Pause-Circle--Streamline-Solar-Ar" height="24" width="24">
-            <path stroke="#888888" d="M2 12a10 10 0 1 0 20 0 10 10 0 1 0 -20 0" stroke-width="1.5"></path>
-            <path d="M8 9.5c0 -0.46594 0 -0.69891 0.07612 -0.88268 0.10149 -0.24503 0.29617 -0.43971 0.5412 -0.5412C8.80109 8 9.03406 8 9.5 8s0.6989 0 0.8827 0.07612c0.245 0.10149 0.4397 0.29617 0.5412 0.5412C11 8.80109 11 9.03406 11 9.5v5c0 0.4659 0 0.6989 -0.0761 0.8827 -0.1015 0.245 -0.2962 0.4397 -0.5412 0.5412C10.1989 16 9.96594 16 9.5 16s-0.69891 0 -0.88268 -0.0761c-0.24503 -0.1015 -0.43971 -0.2962 -0.5412 -0.5412C8 15.1989 8 14.9659 8 14.5v-5Z" stroke="#888888" stroke-width="1.5"></path>
-            <path d="M13 9.5c0 -0.46594 0 -0.69891 0.0761 -0.88268 0.1015 -0.24503 0.2962 -0.43971 0.5412 -0.5412C13.8011 8 14.0341 8 14.5 8c0.4659 0 0.6989 0 0.8827 0.07612 0.245 0.10149 0.4397 0.29617 0.5412 0.5412C16 8.80109 16 9.03406 16 9.5v5c0 0.4659 0 0.6989 -0.0761 0.8827 -0.1015 0.245 -0.2962 0.4397 -0.5412 0.5412C15.1989 16 14.9659 16 14.5 16c-0.4659 0 -0.6989 0 -0.8827 -0.0761 -0.245 -0.1015 -0.4397 -0.2962 -0.5412 -0.5412C13 15.1989 13 14.9659 13 14.5v-5Z" stroke="#888888" stroke-width="1.5"></path>
-        </svg>'''
-    
-    def _create_icon_from_svg(self, svg_string, size=24):
-        """Создаёт QIcon из SVG строки."""
-        pixmap = QPixmap(size, size)
-        pixmap.fill(Qt.GlobalColor.transparent)
-        renderer = QSvgRenderer(QByteArray(svg_string.encode()))
-        painter = QPainter(pixmap)
-        renderer.render(painter)
-        painter.end()
-        return QIcon(pixmap)
-        
     def _setup_ui(self):
         """Создаёт интерфейс страницы музыки."""
         main_layout = QVBoxLayout(self)
@@ -334,7 +313,7 @@ class MusicPage(QWidget):
         self.track_list_widget.setUniformItemSizes(True)
         
         main_layout.addWidget(self.track_list_widget)
-        
+    
     def _load_music_path(self):
         """Загружает путь к музыке из конфига."""
         if os.path.exists(self.config_file):
