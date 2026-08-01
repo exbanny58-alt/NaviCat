@@ -239,7 +239,7 @@ class MatteBlackWindow(QWidget):
 
         # Состояние меню - по умолчанию свёрнуто
         self.menu_expanded = False
-        self.menu_width_expanded = 220
+        self.menu_width_expanded = 160
         self.menu_width_collapsed = 64
 
         # Главный вертикальный макет
