@@ -194,6 +194,7 @@ class MusicPage(QWidget):
         self.player.position_changed.connect(self._on_position_changed)
         self.player.duration_changed.connect(self._on_duration_changed)
         self.player.error_occurred.connect(self._on_player_error)
+        self.player.track_finished.connect(self._on_track_finished)  # <-- ПОДКЛЮЧАЕМ
     
     def _get_music_note_svg(self):
         """Возвращает SVG иконки ноты."""
@@ -527,6 +528,13 @@ class MusicPage(QWidget):
     def _on_player_error(self, error_message):
         """Обработчик ошибок плеера."""
         self.notifications.show_error("Ошибка воспроизведения", error_message, 5000)
+    
+    def _on_track_finished(self):
+        """Обработчик окончания трека - автоматически переключает на следующий"""
+        playlist = self.player.get_playlist()
+        if playlist and len(playlist) > 0:
+            self.player.next_track()
+            self._update_all_buttons()
     
     def seek_to_position(self, track_path, position_ms):
         """Перематывает трек на указанную позицию"""

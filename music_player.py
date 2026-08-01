@@ -247,11 +247,10 @@ class MusicPlayer(QObject):
             # Устанавливаем позицию после загрузки
             self.player.setPosition(self.saved_position)
         
-        # Если трек закончился
+        # Если трек закончился - просто сигналим
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
             self.track_finished.emit()
-            # Автоматически переключаем на следующий
-            self.next_track()
+            # UI сам решит что делать: переключить или остановить
     
     def _on_state_changed(self, state):
         """Обработчик изменения состояния воспроизведения."""

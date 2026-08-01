@@ -106,7 +106,7 @@ class SVGIcon:
 
     # Иконка для открытия меню (стрелка влево в круге)
     @staticmethod
-    def create_menu_open_icon(color="#4147d5"):
+    def create_menu_close_icon(color="#4147d5"):
         return f'''<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" id="Less-Than-Sign-Circle--Streamline-Flex" height="20" width="20">
             <path fill="#d7e0ff" d="M7 13.1577c4 0 6.25 -2.25 6.25 -6.24999 0 -4 -2.25 -6.249995 -6.25 -6.249995S0.75 2.90771 0.75 6.90771C0.75 10.9077 3 13.1577 7 13.1577Z" stroke-width="1"></path>
             <path stroke="#4147d5" stroke-linecap="round" stroke-linejoin="round" d="M7 13.1577c4 0 6.25 -2.25 6.25 -6.24999 0 -4 -2.25 -6.249995 -6.25 -6.249995S0.75 2.90771 0.75 6.90771C0.75 10.9077 3 13.1577 7 13.1577Z" stroke-width="1"></path>
@@ -115,7 +115,7 @@ class SVGIcon:
 
     # Иконка для закрытия меню (зеркальная версия через transform)
     @staticmethod
-    def create_menu_close_icon(color="#4147d5"):
+    def create_menu_open_icon(color="#4147d5"):
         return f'''<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" id="Less-Than-Sign-Circle--Streamline-Flex" height="20" width="20">
             <g transform="scale(-1, 1) translate(-14, 0)">
                 <path fill="#d7e0ff" d="M7 13.1577c4 0 6.25 -2.25 6.25 -6.24999 0 -4 -2.25 -6.249995 -6.25 -6.249995S0.75 2.90771 0.75 6.90771C0.75 10.9077 3 13.1577 7 13.1577Z" stroke-width="1"></path>
