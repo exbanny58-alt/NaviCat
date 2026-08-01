@@ -6,10 +6,155 @@ from PyQt6.QtWidgets import (
     QSizePolicy
 )
 from PyQt6.QtCore import Qt, QTimer, QSize, QByteArray
-from PyQt6.QtGui import QIcon, QPixmap, QPainter, QFont
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush
 from PyQt6.QtSvg import QSvgRenderer
 from notifications import get_notification_manager
 from music_player import MusicPlayer
+
+
+class TrackItemWidget(QWidget):
+    """Виджет для элемента списка треков с прогресс-баром и перемоткой."""
+    
+    def __init__(self, track_path, track_name, play_icon, pause_icon, music_icon, parent=None):
+        super().__init__(parent)
+        self.track_path = track_path
+        self.progress = 0.0
+        self.is_playing = False
+        self.duration = 0  # Длительность трека в миллисекундах
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(12)
+        
+        # Иконка ноты
+        self.icon_label = QLabel()
+        self.icon_label.setFixedSize(20, 20)
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.icon_label.setPixmap(music_icon.pixmap(QSize(20, 20)))
+        layout.addWidget(self.icon_label)
+        
+        # Название трека
+        self.name_label = QLabel(track_name)
+        self.name_label.setStyleSheet("color: #cccccc; font-size: 14px;")
+        self.name_label.setWordWrap(False)
+        self.name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        layout.addWidget(self.name_label, 1)
+        
+        # Кнопка Play/Pause
+        self.play_btn = QPushButton()
+        self.play_btn.setIcon(play_icon)
+        self.play_btn.setIconSize(QSize(24, 24))
+        self.play_btn.setFixedSize(32, 32)
+        self.play_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 16px;
+                padding: 4px;
+            }
+            QPushButton:hover {
+                background-color: #2a2a2a;
+            }
+            QPushButton:pressed {
+                background-color: #3a3a3a;
+            }
+        """)
+        self.play_btn.setProperty("file_path", track_path)
+        layout.addWidget(self.play_btn)
+        
+        # Настройка для рисования прогресса
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("""
+            TrackItemWidget {
+                background-color: transparent;
+                border-radius: 4px;
+            }
+        """)
+        
+        # Включаем отслеживание мыши для hover эффекта
+        self.setMouseTracking(True)
+        self.is_hovered = False
+    
+    def set_progress(self, progress):
+        """Устанавливает прогресс (0.0 - 1.0)"""
+        self.progress = max(0.0, min(1.0, progress))
+        self.update()
+    
+    def set_duration(self, duration):
+        """Устанавливает длительность трека в миллисекундах"""
+        self.duration = duration
+    
+    def set_playing_state(self, is_playing):
+        """Устанавливает состояние воспроизведения"""
+        self.is_playing = is_playing
+        self.update()
+    
+    def paintEvent(self, event):
+        """Рисуем фон с прогрессом"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Рисуем прогресс-бар только если есть прогресс
+        if self.progress > 0.01:
+            # Серый цвет, светлее фона (фон #1a1a1a, наводка #2a2a2a)
+            # Используем #3a3a3a - светлее чем #2a2a2a
+            progress_color = QColor(58, 58, 58, 200)  # #3a3a3a с альфа 200
+            
+            # Если курсор наведён на прогресс, показываем более яркий цвет
+            if self.is_hovered and self.progress > 0.01:
+                progress_color = QColor(80, 80, 80, 220)  # #505050
+            
+            # Рисуем прямоугольник прогресса
+            rect = self.rect()
+            progress_width = int(rect.width() * self.progress)
+            progress_rect = rect.adjusted(0, 0, -rect.width() + progress_width, 0)
+            
+            painter.setBrush(QBrush(progress_color))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(progress_rect, 4, 4)
+        
+        # Вызываем родительский paintEvent для отрисовки остального
+        super().paintEvent(event)
+    
+    def mousePressEvent(self, event):
+        """Обработка клика мыши для перемотки"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            # Получаем позицию клика относительно виджета
+            pos = event.position().x()
+            width = self.width()
+            
+            # Вычисляем прогресс от 0.0 до 1.0
+            click_progress = max(0.0, min(1.0, pos / width))
+            
+            # Если есть длительность, отправляем сигнал о перемотке
+            if self.duration > 0:
+                new_position = int(click_progress * self.duration)
+                # Создаём кастомный сигнал через родителя
+                if self.parent():
+                    # Ищем MusicPage в родителях
+                    parent = self.parent()
+                    while parent:
+                        if hasattr(parent, 'seek_to_position'):
+                            parent.seek_to_position(self.track_path, new_position)
+                            break
+                        parent = parent.parent()
+            
+            # Обновляем прогресс для визуального отклика
+            self.set_progress(click_progress)
+            
+        super().mousePressEvent(event)
+    
+    def enterEvent(self, event):
+        """Курсор вошёл в область виджета"""
+        self.is_hovered = True
+        self.update()
+        super().enterEvent(event)
+    
+    def leaveEvent(self, event):
+        """Курсор вышел из области виджета"""
+        self.is_hovered = False
+        self.update()
+        super().leaveEvent(event)
 
 
 class MusicPage(QWidget):
@@ -31,8 +176,14 @@ class MusicPage(QWidget):
         self.play_icon = self._create_icon_from_svg(self._get_play_svg())
         self.pause_icon = self._create_icon_from_svg(self._get_pause_svg())
         
-        # Храним кнопки для обновления состояний
+        # Храним кнопки и виджеты для обновления состояний
         self.play_buttons = {}
+        self.track_widgets = {}
+        
+        # Таймер для обновления прогресса
+        self.progress_timer = QTimer()
+        self.progress_timer.setInterval(200)  # Обновление 5 раз в секунду
+        self.progress_timer.timeout.connect(self._update_progress)
         
         self._setup_ui()
         self._load_music_path()
@@ -40,6 +191,8 @@ class MusicPage(QWidget):
         # Подключаем сигналы плеера
         self.player.track_changed.connect(self._on_track_changed)
         self.player.state_changed.connect(self._on_player_state_changed)
+        self.player.position_changed.connect(self._on_position_changed)
+        self.player.duration_changed.connect(self._on_duration_changed)
         self.player.error_occurred.connect(self._on_player_error)
     
     def _get_music_note_svg(self):
@@ -103,7 +256,7 @@ class MusicPage(QWidget):
             }
             
             QListWidget::item:selected {
-                background-color: #3a6ea5;
+                background-color: transparent;
             }
             
             /* Кастомный скроллбар */
@@ -197,6 +350,7 @@ class MusicPage(QWidget):
         """Загружает список треков из папки с музыкой."""
         self.track_list_widget.clear()
         self.play_buttons.clear()
+        self.track_widgets.clear()
         
         if not self.music_path or not os.path.exists(self.music_path):
             item = QListWidgetItem("Папка с музыкой не выбрана")
@@ -220,60 +374,28 @@ class MusicPage(QWidget):
                         full_path = os.path.join(root, file)
                         rel_path = os.path.relpath(full_path, self.music_path)
                         
-                        # Создаём виджет для элемента списка
-                        item_widget = QWidget()
-                        item_widget.setStyleSheet("background-color: transparent;")
+                        # Создаём кастомный виджет
+                        item_widget = TrackItemWidget(
+                            full_path,
+                            rel_path,
+                            self.play_icon,
+                            self.pause_icon,
+                            self.music_icon
+                        )
                         
-                        item_layout = QHBoxLayout(item_widget)
-                        item_layout.setContentsMargins(10, 8, 10, 8)
-                        item_layout.setSpacing(12)
-                        
-                        # Иконка ноты
-                        icon_label = QLabel()
-                        icon_label.setPixmap(self.music_icon.pixmap(QSize(20, 20)))
-                        icon_label.setFixedSize(20, 20)
-                        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                        item_layout.addWidget(icon_label)
-                        
-                        # Название трека
-                        name_label = QLabel(rel_path)
-                        name_label.setStyleSheet("color: #cccccc; font-size: 14px;")
-                        name_label.setWordWrap(False)
-                        name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-                        item_layout.addWidget(name_label, 1)
-                        
-                        # Кнопка Play/Pause
-                        play_btn = QPushButton()
-                        play_btn.setIcon(self.play_icon)
-                        play_btn.setIconSize(QSize(24, 24))
-                        play_btn.setFixedSize(32, 32)
-                        play_btn.setStyleSheet("""
-                            QPushButton {
-                                background-color: transparent;
-                                border: none;
-                                border-radius: 16px;
-                                padding: 4px;
-                            }
-                            QPushButton:hover {
-                                background-color: #2a2a2a;
-                            }
-                            QPushButton:pressed {
-                                background-color: #3a3a3a;
-                            }
-                        """)
-                        play_btn.setProperty("file_path", full_path)
-                        play_btn.clicked.connect(self._on_play_clicked)
-                        item_layout.addWidget(play_btn)
+                        # Подключаем кнопку
+                        item_widget.play_btn.clicked.connect(self._on_play_clicked)
                         
                         # Добавляем в список
                         item = QListWidgetItem()
                         item.setData(Qt.ItemDataRole.UserRole, full_path)
-                        item.setSizeHint(QSize(0, 50))  # Фиксированная высота
+                        item.setSizeHint(QSize(0, 50))
                         self.track_list_widget.addItem(item)
                         self.track_list_widget.setItemWidget(item, item_widget)
                         
-                        # Сохраняем ссылку на кнопку
-                        self.play_buttons[full_path] = play_btn
+                        # Сохраняем ссылки
+                        self.play_buttons[full_path] = item_widget.play_btn
+                        self.track_widgets[full_path] = item_widget
                         track_count += 1
             
             if track_count == 0:
@@ -302,13 +424,16 @@ class MusicPage(QWidget):
                 # Если играет - ставим на паузу
                 self.player.pause()
                 btn.setIcon(self.play_icon)
+                self.progress_timer.stop()
             else:
                 # Если на паузе - возобновляем
                 self.player.play()
                 btn.setIcon(self.pause_icon)
+                self.progress_timer.start()
         else:
             # Иначе начинаем воспроизведение нового трека
             self.player.play_track_by_path(file_path)
+            self.progress_timer.start()
             # Обновляем все кнопки
             self._update_all_buttons()
     
@@ -325,9 +450,50 @@ class MusicPage(QWidget):
             else:
                 btn.setIcon(self.play_icon)
     
+    def _update_progress(self):
+        """Обновляет прогресс для текущего трека"""
+        current_path = self.player.get_current_track_path()
+        if not current_path or current_path not in self.track_widgets:
+            return
+        
+        duration = self.player.get_duration()
+        position = self.player.get_position()
+        
+        if duration > 0:
+            progress = position / duration
+            widget = self.track_widgets[current_path]
+            widget.set_progress(progress)
+    
+    def _on_position_changed(self, position):
+        """Обработчик изменения позиции"""
+        if self.progress_timer.isActive():
+            self._update_progress()
+    
+    def _on_duration_changed(self, duration):
+        """Обработчик изменения длительности"""
+        current_path = self.player.get_current_track_path()
+        if current_path and current_path in self.track_widgets:
+            self.track_widgets[current_path].set_duration(duration)
+        self._update_progress()
+    
     def _on_track_changed(self, path):
         """Обработчик смены трека."""
+        # Сбрасываем прогресс и длительность у всех треков
+        for widget in self.track_widgets.values():
+            widget.set_progress(0.0)
+            widget.set_playing_state(False)
+            widget.set_duration(0)
+        
+        # Устанавливаем состояние для текущего трека
+        if path in self.track_widgets:
+            widget = self.track_widgets[path]
+            widget.set_playing_state(True)
+            widget.set_progress(0.0)
+            widget.set_duration(self.player.get_duration())
+        
         self._update_all_buttons()
+        self.progress_timer.start()
+        
         self.notifications.show_info(
             "Сейчас играет",
             os.path.basename(path),
@@ -336,16 +502,40 @@ class MusicPage(QWidget):
     
     def _on_player_state_changed(self, state):
         """Обработчик изменения состояния плеера."""
+        current_path = self.player.get_current_track_path()
+        
         if state == "playing":
             self._update_all_buttons()
+            if current_path in self.track_widgets:
+                self.track_widgets[current_path].set_playing_state(True)
+            self.progress_timer.start()
+            
         elif state == "paused":
-            # Обновляем все кнопки
             self._update_all_buttons()
+            self.progress_timer.stop()
+            
         elif state == "stopped":
             # Сбрасываем все кнопки
             for btn in self.play_buttons.values():
                 btn.setIcon(self.play_icon)
+            for widget in self.track_widgets.values():
+                widget.set_progress(0.0)
+                widget.set_playing_state(False)
+                widget.set_duration(0)
+            self.progress_timer.stop()
     
     def _on_player_error(self, error_message):
         """Обработчик ошибок плеера."""
         self.notifications.show_error("Ошибка воспроизведения", error_message, 5000)
+    
+    def seek_to_position(self, track_path, position_ms):
+        """Перематывает трек на указанную позицию"""
+        # Проверяем, что это текущий трек
+        if self.player.get_current_track_path() == track_path:
+            self.player.set_position(position_ms)
+            # Обновляем прогресс сразу
+            duration = self.player.get_duration()
+            if duration > 0:
+                progress = position_ms / duration
+                if track_path in self.track_widgets:
+                    self.track_widgets[track_path].set_progress(progress)
