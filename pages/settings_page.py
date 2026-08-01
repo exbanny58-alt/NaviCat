@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from notifications import get_notification_manager
-from dialog import CustomDialog  # новый импорт
+from dialog import CustomDialog
 
 
 class SettingsPage(QWidget):
@@ -49,6 +49,7 @@ class SettingsPage(QWidget):
             ("Путь до exe файла игры", "file"),
             ("Путь до папки Workshop", "directory"),
             ("Путь до папки своих модов", "directory"),
+            ("Путь до папки с музыкой", "directory"),  # <-- НОВОЕ ПОЛЕ
         ]
 
         for label_text, mode in items:
@@ -247,7 +248,6 @@ class SettingsPage(QWidget):
 
     def clear_settings(self):
         """Очищает все поля и удаляет файл конфига с подтверждением."""
-        # Используем кастомный диалог вместо QMessageBox
         confirmed = CustomDialog.question(
             self,
             "Очистка настроек",

@@ -7,6 +7,7 @@ from PyQt6.QtGui import QPainter, QColor, QBrush, QPen
 from svg_icons import SVGIcon
 from title_bar import CustomTitleBar
 from pages import SettingsPage
+from pages import MusicPage
 
 
 class MatteBlackWindow(QWidget):
@@ -121,22 +122,10 @@ class MatteBlackWindow(QWidget):
         settings_page = SettingsPage()
         self.content_stack.addWidget(settings_page)
 
-        # Страница музыки (индекс 5)
-        music_page = QWidget()
-        music_page.setStyleSheet("background-color: transparent;")
-        music_layout = QVBoxLayout()
-        music_layout.setContentsMargins(30, 30, 30, 30)
-        label = QLabel(
-            "<h1 style='color: #cccccc;'>Музыка</h1>"
-            "<p style='color: #666666;'>Здесь будет управление музыкой</p>"
-        )
-        label.setAlignment(Qt.AlignmentFlag.AlignTop)
-        music_layout.addWidget(label)
-        music_layout.addStretch()
-        music_page.setLayout(music_layout)
+        # Страница музыки (индекс 5) - используем MusicPage вместо заглушки
+        music_page = MusicPage()  # <-- Используем новый класс
         self.content_stack.addWidget(music_page)
-        self.music_index = self.content_stack.count() - 1  # запоминаем индекс
-
+        self.music_index = self.content_stack.count() - 1
         content_layout = QVBoxLayout()
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.addWidget(self.content_stack)
