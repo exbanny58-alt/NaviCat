@@ -114,6 +114,7 @@ class CustomTitleBar(QWidget):
         self.setFixedHeight(44)
         self.setStyleSheet("background-color: #1a1a1a;")
 
+        # Кнопка-стрелка
         self.toggle_btn = QPushButton()
         self.toggle_btn.setIcon(SVGIcon.svg_to_icon(SVGIcon.create_arrow_left_icon("#aaaaaa"), size=20))
         self.toggle_btn.setIconSize(QSize(20, 20))
@@ -131,6 +132,7 @@ class CustomTitleBar(QWidget):
         """)
         self.toggle_btn.clicked.connect(self.parent.toggle_menu)
 
+        # Кнопки управления
         self.minimize_btn = QPushButton()
         self.maximize_btn = QPushButton()
         self.close_btn = QPushButton()
@@ -235,23 +237,28 @@ class MatteBlackWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setGeometry(100, 100, 1000, 650)
 
+        # Состояние меню - по умолчанию свёрнуто
         self.menu_expanded = False
         self.menu_width_expanded = 220
         self.menu_width_collapsed = 64
 
+        # Главный вертикальный макет
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
+        # Шапка
         self.title_bar = CustomTitleBar(self)
         main_layout.addWidget(self.title_bar)
 
+        # Разделитель под шапкой
         separator_top = QFrame()
         separator_top.setFrameShape(QFrame.Shape.HLine)
         separator_top.setFrameShadow(QFrame.Shadow.Sunken)
         separator_top.setStyleSheet("background-color: #333333; max-height: 1px;")
         main_layout.addWidget(separator_top)
 
+        # Основная горизонтальная часть
         self.main_hbox = QHBoxLayout()
         self.main_hbox.setContentsMargins(0, 0, 0, 0)
         self.main_hbox.setSpacing(0)
@@ -264,17 +271,16 @@ class MatteBlackWindow(QWidget):
         menu_layout.setContentsMargins(10, 20, 10, 20)
         menu_layout.setSpacing(8)
 
+        # Пункты меню
         self.menu_buttons = []
-
-        # Основные пункты меню (без Настроек)
-        main_menu_items = [
-            ("    Сервер", SVGIcon.create_server_icon, 1),
-            ("    Клиент", SVGIcon.create_client_icon, 2),
-            ("    Моды", SVGIcon.create_mods_icon, 3),
-            ("    Редакторы", SVGIcon.create_editors_icon, 4),
+        menu_items = [
+            ("Сервер", SVGIcon.create_server_icon),
+            ("Клиент", SVGIcon.create_client_icon),
+            ("Моды", SVGIcon.create_mods_icon),
+            ("Редакторы", SVGIcon.create_editors_icon),
         ]
 
-        for i, (name, icon_func, page_index) in enumerate(main_menu_items):
+        for i, (name, icon_func) in enumerate(menu_items):
             btn = QPushButton(name)
             btn.setObjectName(f"menu_{i}")
             btn.setCheckable(True)
@@ -283,7 +289,7 @@ class MatteBlackWindow(QWidget):
             icon = SVGIcon.svg_to_icon(svg, size=24)
             btn.setIcon(icon)
             btn.setIconSize(QSize(24, 24))
-            btn.setToolTip(name.strip())
+            btn.setToolTip(name)
             btn.setStyleSheet("""
                 QPushButton {
                     background-color: transparent;
@@ -305,23 +311,14 @@ class MatteBlackWindow(QWidget):
                     border-left: 3px solid #ffffff;
                 }
             """)
-            btn.clicked.connect(lambda checked, idx=page_index: self.on_menu_clicked(idx))
+            btn.clicked.connect(lambda checked, idx=i: self.on_menu_clicked(idx))
             menu_layout.addWidget(btn)
             self.menu_buttons.append(btn)
 
-            # Добавляем разделитель после каждой кнопки, кроме последней в основном списке
-            if i < len(main_menu_items) - 1:
-                separator = QFrame()
-                separator.setFrameShape(QFrame.Shape.HLine)
-                separator.setFrameShadow(QFrame.Shadow.Sunken)
-                separator.setStyleSheet("background-color: #333333; max-height: 1px; margin: 4px 0;")
-                menu_layout.addWidget(separator)
-
-        # Растяжка, чтобы отделить основные пункты от настроек
         menu_layout.addStretch()
 
-        # Пункт "Настройки" внизу
-        settings_btn = QPushButton("    Настройки")
+        # Настройки
+        settings_btn = QPushButton("Настройки")
         settings_btn.setObjectName("menu_settings")
         settings_btn.setCheckable(True)
         settings_btn.setAutoExclusive(True)
@@ -351,7 +348,7 @@ class MatteBlackWindow(QWidget):
                 border-left: 3px solid #ffffff;
             }
         """)
-        settings_btn.clicked.connect(lambda checked: self.on_menu_clicked(5))
+        settings_btn.clicked.connect(lambda checked: self.on_menu_clicked(4))
         menu_layout.addWidget(settings_btn)
         self.menu_buttons.append(settings_btn)
 
@@ -369,27 +366,15 @@ class MatteBlackWindow(QWidget):
         self.content_stack = QStackedWidget()
         self.content_stack.setStyleSheet("background-color: transparent;")
 
-        # 1) Главная страница (индекс 0)
-        main_page = QWidget()
-        main_page.setStyleSheet("background-color: transparent;")
-        main_page_layout = QVBoxLayout()
-        main_page_layout.setContentsMargins(30, 30, 30, 30)
-        label_main = QLabel("<h1 style='color: #cccccc;'>Главная страница</h1>"
-                            "<p style='color: #666666;'>Добро пожаловать!</p>")
-        label_main.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_page_layout.addWidget(label_main)
-        main_page_layout.addStretch()
-        main_page.setLayout(main_page_layout)
-        self.content_stack.addWidget(main_page)
-
-        # 2) Страницы для основных пунктов (индексы 1..4)
-        for name, icon_func, page_index in main_menu_items:
+        # Создаём страницы
+        all_items = menu_items + [("Настройки", SVGIcon.create_settings_icon)]
+        for i, (name, _) in enumerate(all_items):
             page = QWidget()
             page.setStyleSheet("background-color: transparent;")
             page_layout = QVBoxLayout()
             page_layout.setContentsMargins(30, 30, 30, 30)
-            label = QLabel(f"<h1 style='color: #cccccc;'>{name.strip()}</h1>"
-                           f"<p style='color: #666666;'>Контент для страницы «{name.strip()}»</p>"
+            label = QLabel(f"<h1 style='color: #cccccc;'>{name}</h1>"
+                           f"<p style='color: #666666;'>Контент для страницы «{name}»</p>"
                            f"<p style='color: #555555;'>Здесь может быть ваша информация.</p>")
             label.setAlignment(Qt.AlignmentFlag.AlignTop)
             label.setWordWrap(True)
@@ -398,25 +383,12 @@ class MatteBlackWindow(QWidget):
             page.setLayout(page_layout)
             self.content_stack.addWidget(page)
 
-        # 3) Страница для Настроек (индекс 5)
-        settings_page = QWidget()
-        settings_page.setStyleSheet("background-color: transparent;")
-        settings_page_layout = QVBoxLayout()
-        settings_page_layout.setContentsMargins(30, 30, 30, 30)
-        label_settings = QLabel("<h1 style='color: #cccccc;'>Настройки</h1>"
-                                "<p style='color: #666666;'>Страница настроек</p>")
-        label_settings.setAlignment(Qt.AlignmentFlag.AlignTop)
-        label_settings.setWordWrap(True)
-        settings_page_layout.addWidget(label_settings)
-        settings_page_layout.addStretch()
-        settings_page.setLayout(settings_page_layout)
-        self.content_stack.addWidget(settings_page)
-
         content_layout = QVBoxLayout()
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.addWidget(self.content_stack)
         content_panel.setLayout(content_layout)
 
+        # Собираем горизонтальную часть
         self.main_hbox.addWidget(self.menu_panel)
         self.main_hbox.addWidget(self.separator_vertical)
         self.main_hbox.addWidget(content_panel)
@@ -424,25 +396,12 @@ class MatteBlackWindow(QWidget):
         main_layout.addLayout(self.main_hbox)
         self.setLayout(main_layout)
 
+        # Применяем начальное состояние (свёрнутое)
         self.apply_menu_state()
 
-        # По умолчанию показываем главную страницу (индекс 0)
-        self.content_stack.setCurrentIndex(0)
-        # Снимаем выделение со всех кнопок
-        for btn in self.menu_buttons:
-            btn.setChecked(False)
-        # Делаем все иконки серыми
-        icon_functions = [
-            SVGIcon.create_server_icon,
-            SVGIcon.create_client_icon,
-            SVGIcon.create_mods_icon,
-            SVGIcon.create_editors_icon,
-            SVGIcon.create_settings_icon
-        ]
-        for i, btn in enumerate(self.menu_buttons):
-            svg = icon_functions[i]("#aaaaaa")
-            icon = SVGIcon.svg_to_icon(svg, size=24)
-            btn.setIcon(icon)
+        # По умолчанию выбираем первый пункт
+        self.menu_buttons[0].setChecked(True)
+        self.on_menu_clicked(0)
 
     def apply_menu_state(self):
         width = self.menu_width_expanded if self.menu_expanded else self.menu_width_collapsed
@@ -512,12 +471,7 @@ class MatteBlackWindow(QWidget):
             SVGIcon.create_settings_icon
         ]
         for i, btn in enumerate(self.menu_buttons):
-            if i + 1 == index:
-                btn.setChecked(True)
-                color = "#ffffff"
-            else:
-                btn.setChecked(False)
-                color = "#aaaaaa"
+            color = "#ffffff" if i == index else "#aaaaaa"
             svg = icon_functions[i](color)
             icon = SVGIcon.svg_to_icon(svg, size=24)
             btn.setIcon(icon)
@@ -525,10 +479,12 @@ class MatteBlackWindow(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        # Тень (оставлена для красоты, но без скругления)
         shadow_color = QColor(0, 0, 0, 80)
         painter.setBrush(QBrush(shadow_color))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRect(10, 10, self.width() - 20, self.height() - 20)
+        # Основная рамка
         painter.setBrush(QBrush(QColor(26, 26, 26)))
         painter.setPen(QPen(QColor(50, 50, 50), 1))
         painter.drawRect(0, 0, self.width(), self.height())
