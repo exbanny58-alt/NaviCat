@@ -14,6 +14,7 @@ class MusicPlayer(QObject):
     duration_changed = pyqtSignal(int)  # Сигнал при изменении длительности (в мс)
     state_changed = pyqtSignal(str)  # Сигнал при изменении состояния (playing/paused/stopped)
     error_occurred = pyqtSignal(str)  # Сигнал при ошибке
+    track_finished = pyqtSignal()  # Сигнал при окончании трека
     
     def __init__(self):
         super().__init__()
@@ -245,6 +246,12 @@ class MusicPlayer(QObject):
         if status == QMediaPlayer.MediaStatus.LoadedMedia and self.saved_position > 0:
             # Устанавливаем позицию после загрузки
             self.player.setPosition(self.saved_position)
+        
+        # Если трек закончился
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.track_finished.emit()
+            # Автоматически переключаем на следующий
+            self.next_track()
     
     def _on_state_changed(self, state):
         """Обработчик изменения состояния воспроизведения."""
