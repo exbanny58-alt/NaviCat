@@ -2,9 +2,10 @@ import os
 import json
 from PyQt6.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton,
-    QHBoxLayout, QVBoxLayout, QFileDialog
+    QHBoxLayout, QVBoxLayout, QFileDialog, QFrame,
+    QSizePolicy
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize
 from notifications import get_notification_manager
 from dialog import CustomDialog
 
@@ -23,23 +24,47 @@ class SettingsPage(QWidget):
         if not os.path.exists(self.config_dir):
             os.makedirs(self.config_dir)
         
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(30, 30, 30, 30)
-        layout.setSpacing(15)
+        # Основной layout - выравнивание по левому краю
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(30, 30, 30, 30)
+        main_layout.setSpacing(0)
+        main_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        
+        # Создаём контейнер с фиксированной шириной
+        container = QFrame()
+        container.setFixedWidth(700)
+        container.setStyleSheet("""
+            QFrame {
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(15)
+        container_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # Заголовок
         title = QLabel("Настройки")
         title.setStyleSheet("color: #cccccc; font-size: 24px; font-weight: bold;")
-        layout.addWidget(title)
+        container_layout.addWidget(title)
 
         # Подсказка
         hint = QLabel("Заполните необходимые пути (можно не все)")
         hint.setStyleSheet("color: #888888; font-size: 12px;")
-        layout.addWidget(hint)
+        container_layout.addWidget(hint)
+
+        # Разделитель
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet("background-color: #333333; max-height: 1px;")
+        container_layout.addWidget(sep)
 
         # Форма для путей
         form_layout = QVBoxLayout()
         form_layout.setSpacing(10)
+        form_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.paths = {}  # словарь {метка: QLineEdit}
 
@@ -49,17 +74,36 @@ class SettingsPage(QWidget):
             ("Путь до exe файла игры", "file"),
             ("Путь до папки Workshop", "directory"),
             ("Путь до папки своих модов", "directory"),
-            ("Путь до папки с музыкой", "directory"),  # <-- НОВОЕ ПОЛЕ
+            ("Путь до папки с музыкой", "directory"),
         ]
 
         for label_text, mode in items:
-            row = QHBoxLayout()
+            # Каждая строка в отдельном фрейме для лучшего контроля
+            row_frame = QFrame()
+            row_frame.setStyleSheet("""
+                QFrame {
+                    background-color: transparent;
+                    border: none;
+                }
+            """)
+            row_layout = QHBoxLayout(row_frame)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(12)
+            
+            # Метка с фиксированной шириной - выравнивание по левому краю
             label = QLabel(label_text)
             label.setFixedWidth(200)
-            label.setStyleSheet("color: #aaaaaa; font-size: 14px;")
-            row.addWidget(label)
+            label.setStyleSheet("""
+                color: #aaaaaa; 
+                font-size: 14px;
+                background-color: transparent;
+            """)
+            label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            row_layout.addWidget(label)
 
+            # Поле ввода - растягивается, но ограничено максимальной шириной
             line_edit = QLineEdit()
+            line_edit.setFixedHeight(36)
             line_edit.setPlaceholderText("Введите путь или выберите через 'Обзор'")
             line_edit.setStyleSheet("""
                 QLineEdit {
@@ -67,31 +111,40 @@ class SettingsPage(QWidget):
                     color: #cccccc;
                     border: 1px solid #444444;
                     border-radius: 4px;
-                    padding: 6px;
+                    padding: 6px 10px;
                     font-size: 13px;
                 }
                 QLineEdit:focus {
                     border: 1px solid #888888;
+                    background-color: #333333;
                 }
                 QLineEdit::placeholder {
                     color: #666666;
                 }
             """)
-            row.addWidget(line_edit)
+            line_edit.setSizePolicy(
+                QSizePolicy.Policy.Expanding, 
+                QSizePolicy.Policy.Fixed
+            )
+            row_layout.addWidget(line_edit, 1)
 
+            # Кнопка "Обзор" с фиксированной шириной
             browse_btn = QPushButton("Обзор")
-            browse_btn.setFixedWidth(80)
+            browse_btn.setFixedSize(100, 36)
             browse_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #2a2a2a;
                     color: #cccccc;
                     border: 1px solid #444444;
                     border-radius: 4px;
-                    padding: 6px;
+                    padding: 6px 12px;
                     font-size: 13px;
+                    font-weight: 500;
                 }
                 QPushButton:hover {
                     background-color: #3a3a3a;
+                    border-color: #666666;
+                    color: #ffffff;
                 }
                 QPushButton:pressed {
                     background-color: #1a1a1a;
@@ -100,45 +153,27 @@ class SettingsPage(QWidget):
             browse_btn.clicked.connect(
                 lambda checked, le=line_edit, m=mode: self.browse(le, m)
             )
-            row.addWidget(browse_btn)
+            row_layout.addWidget(browse_btn)
 
-            form_layout.addLayout(row)
+            container_layout.addWidget(row_frame)
             self.paths[label_text] = line_edit
 
-        layout.addLayout(form_layout)
+        container_layout.addLayout(form_layout)
+
+        # Разделитель перед кнопками
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.HLine)
+        sep2.setStyleSheet("background-color: #333333; max-height: 1px;")
+        container_layout.addWidget(sep2)
 
         # Кнопки (Сохранить и Очистить) в одной строке
         buttons_layout = QHBoxLayout()
-        buttons_layout.setSpacing(10)
-        buttons_layout.addStretch()
+        buttons_layout.setSpacing(12)
+        buttons_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)  # Выравнивание по левому краю
 
-        # Кнопка очистить
-        clear_btn = QPushButton("Очистить")
-        clear_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3a1a1a;
-                color: #ff6b6b;
-                border: 1px solid #5a2a2a;
-                border-radius: 4px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #4a2a2a;
-                color: #ff8a8a;
-                border-color: #7a3a3a;
-            }
-            QPushButton:pressed {
-                background-color: #2a0a0a;
-                border-color: #4a1a1a;
-            }
-        """)
-        clear_btn.clicked.connect(self.clear_settings)
-        buttons_layout.addWidget(clear_btn)
-
-        # Кнопка сохранить
+        # Кнопка сохранить (теперь первая)
         save_btn = QPushButton("Сохранить")
+        save_btn.setFixedSize(160, 42)
         save_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2a2a2a;
@@ -151,6 +186,8 @@ class SettingsPage(QWidget):
             }
             QPushButton:hover {
                 background-color: #3a3a3a;
+                border-color: #666666;
+                color: #ffffff;
             }
             QPushButton:pressed {
                 background-color: #1a1a1a;
@@ -159,8 +196,35 @@ class SettingsPage(QWidget):
         save_btn.clicked.connect(self.save_settings)
         buttons_layout.addWidget(save_btn)
 
-        layout.addLayout(buttons_layout)
-        layout.addStretch()
+        # Кнопка очистить (теперь вторая)
+        clear_btn = QPushButton("Очистить всё")
+        clear_btn.setFixedSize(160, 42)
+        clear_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2a2a2a;
+                color: #cccccc;
+                border: 1px solid #444444;
+                border-radius: 4px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3a3a3a;
+                border-color: #666666;
+                color: #ffffff;
+            }
+            QPushButton:pressed {
+                background-color: #1a1a1a;
+            }
+        """)
+        clear_btn.clicked.connect(self.clear_settings)
+        buttons_layout.addWidget(clear_btn)
+
+        container_layout.addLayout(buttons_layout)
+        
+        # Добавляем контейнер в основной layout с отступом сверху
+        main_layout.addWidget(container)
 
         # Загружаем сохранённые настройки при инициализации
         self.load_settings()
@@ -171,6 +235,8 @@ class SettingsPage(QWidget):
             if mode == "directory":
                 dir_path = QFileDialog.getExistingDirectory(self, "Выберите папку")
                 if dir_path:
+                    # Нормализуем путь (заменяем обратные слеши на прямые)
+                    dir_path = dir_path.replace('\\', '/')
                     line_edit.setText(dir_path)
                     self.notifications.show_success(
                         "Папка выбрана", 
@@ -184,6 +250,7 @@ class SettingsPage(QWidget):
                     filter="Executable files (*.exe);;All files (*.*)"
                 )
                 if file_path:
+                    file_path = file_path.replace('\\', '/')
                     line_edit.setText(file_path)
                     self.notifications.show_success(
                         "Файл выбран", 
@@ -217,7 +284,9 @@ class SettingsPage(QWidget):
         
         for label, le in self.paths.items():
             text = le.text().strip()
+            # Нормализуем путь
             if text:
+                text = text.replace('\\', '/')
                 filled_count += 1
             settings[label] = text
         
@@ -225,10 +294,6 @@ class SettingsPage(QWidget):
             # Сохраняем в JSON
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(settings, f, ensure_ascii=False, indent=4)
-            
-            print("Настройки сохранены:")
-            for k, v in settings.items():
-                print(f"{k}: {v}")
             
             # Показываем уведомление
             if filled_count == 0:
@@ -253,7 +318,7 @@ class SettingsPage(QWidget):
             "Очистка настроек",
             "Вы действительно хотите очистить все пути и удалить конфигурацию?\n\n"
             "Это действие нельзя отменить.",
-            default=False  # По умолчанию "Нет"
+            default=False
         )
         
         if not confirmed:

@@ -1,4 +1,4 @@
-# main_window.py (полная обновлённая версия)
+# main_window.py
 
 import os
 import json
@@ -10,22 +10,18 @@ from PyQt6.QtCore import Qt, QSize, QTimer, QRect
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPen, QCursor
 from svg_icons import SVGIcon
 from title_bar import CustomTitleBar
-from pages import SettingsPage, MusicPage, MainPage
+from pages import SettingsPage, MusicPage, MainPage, ModsPage
 
 
 class ResizeHandle(QWidget):
     """Виджет для растягивания окна за края."""
     
     def __init__(self, parent, direction):
-        """
-        direction: 'left', 'right', 'bottom', 'bottom_left', 'bottom_right'
-        """
         super().__init__(parent)
         self.parent_window = parent
         self.direction = direction
         self.setMouseTracking(True)
         
-        # Устанавливаем курсор в зависимости от направления
         cursors = {
             'left': Qt.CursorShape.SizeHorCursor,
             'right': Qt.CursorShape.SizeHorCursor,
@@ -34,15 +30,10 @@ class ResizeHandle(QWidget):
             'bottom_right': Qt.CursorShape.SizeFDiagCursor,
         }
         self.setCursor(cursors.get(direction, Qt.CursorShape.ArrowCursor))
-        
-        # Размер области захвата
         self.handle_size = 10
-        
-        # Позиционируем виджет
         self._update_geometry()
     
     def _update_geometry(self):
-        """Обновляет геометрию хэндла."""
         window = self.parent_window
         w = window.width()
         h = window.height()
@@ -58,21 +49,18 @@ class ResizeHandle(QWidget):
             self.setGeometry(geometries[self.direction])
     
     def mousePressEvent(self, event):
-        """Начало растягивания."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.drag_start_pos = event.globalPosition().toPoint()
             self.window_start_geometry = self.parent_window.geometry()
             event.accept()
     
     def mouseMoveEvent(self, event):
-        """Растягивание окна."""
         if event.buttons() & Qt.MouseButton.LeftButton:
             if hasattr(self, 'drag_start_pos'):
                 delta = event.globalPosition().toPoint() - self.drag_start_pos
                 geometry = self.window_start_geometry
                 x, y, w, h = geometry.x(), geometry.y(), geometry.width(), geometry.height()
                 
-                # Минимальный размер окна
                 min_width = 600
                 min_height = 400
                 
@@ -89,12 +77,10 @@ class ResizeHandle(QWidget):
                     new_h = max(min_height, h + delta.y())
                     self.parent_window.setGeometry(x, y, new_w, new_h)
                 
-                # Обновляем геометрию хэндлов
                 self.parent_window.update_resize_handles()
                 event.accept()
     
     def resizeEvent(self, event):
-        """Обновляет геометрию при изменении размера."""
         self._update_geometry()
         super().resizeEvent(event)
 
@@ -105,19 +91,14 @@ class MatteBlackWindow(QWidget):
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
-        # Стандартный размер, если нет сохранённого
         self.setGeometry(100, 100, 1000, 650)
-        
-        # Минимальные размеры
         self.setMinimumSize(600, 400)
         
-        # Загружаем сохранённую геометрию
         self.load_window_geometry()
 
         self.menu_expanded = False
         self.menu_width_expanded = 160
         self.menu_width_collapsed = 64
-        
         self.current_menu_index = -1
 
         self.icon_functions = [
@@ -142,13 +123,11 @@ class MatteBlackWindow(QWidget):
         separator_top.setStyleSheet("background-color: #333333; max-height: 1px;")
         main_layout.addWidget(separator_top)
 
-        # Создаём контейнер для основной части с хэндлами
         self.content_container = QWidget()
         content_container_layout = QVBoxLayout()
         content_container_layout.setContentsMargins(0, 0, 0, 0)
         content_container_layout.setSpacing(0)
         
-        # Основной контент
         self.main_hbox = QHBoxLayout()
         self.main_hbox.setContentsMargins(0, 0, 0, 0)
         self.main_hbox.setSpacing(0)
@@ -185,7 +164,6 @@ class MatteBlackWindow(QWidget):
 
         menu_layout.addStretch()
 
-        # Настройки
         settings_btn = QPushButton("Настройки")
         settings_btn.setObjectName("menu_settings")
         settings_btn.setCheckable(True)
@@ -213,23 +191,30 @@ class MatteBlackWindow(QWidget):
         self.content_stack = QStackedWidget()
         self.content_stack.setStyleSheet("background-color: transparent;")
 
-        # --- ГЛАВНАЯ СТРАНИЦА (индекс 0) ---
+        # --- ГЛАВНАЯ СТРАНИЦА ---
         main_page = MainPage()
         self.content_stack.addWidget(main_page)
         self.main_page_index = 0
 
         self.menu_page_indices = {}
 
+        # Страницы для пунктов меню
         menu_page_names = ["Сервер", "Клиент", "Моды", "Редакторы"]
         for i, name in enumerate(menu_page_names):
-            page = self._create_default_page(name)
-            self.content_stack.addWidget(page)
+            if name == "Моды":
+                mods_page = ModsPage()
+                self.content_stack.addWidget(mods_page)
+            else:
+                page = self._create_default_page(name)
+                self.content_stack.addWidget(page)
             self.menu_page_indices[i] = self.content_stack.count() - 1
 
+        # Страница настроек
         settings_page = SettingsPage()
         self.content_stack.addWidget(settings_page)
         self.menu_page_indices[4] = self.content_stack.count() - 1
 
+        # Страница музыки
         music_page = MusicPage()
         self.content_stack.addWidget(music_page)
         self.menu_page_indices[5] = self.content_stack.count() - 1
@@ -239,7 +224,6 @@ class MatteBlackWindow(QWidget):
         content_layout.addWidget(self.content_stack)
         content_panel.setLayout(content_layout)
 
-        # Собираем горизонтальную часть
         self.main_hbox.addWidget(self.menu_panel)
         self.main_hbox.addWidget(self.separator_vertical)
         self.main_hbox.addWidget(content_panel)
@@ -259,12 +243,14 @@ class MatteBlackWindow(QWidget):
         # Начальное состояние
         self.apply_menu_state()
         self.open_main_page()
-        
-        # Обновляем хэндлы
         self.update_resize_handles()
+            
+    def _on_preload_finished(self):
+        """Обработчик завершения предзагрузки всех страниц."""
+        # Можно добавить уведомление, если нужно
+        pass
 
     def update_resize_handles(self):
-        """Обновляет позиции хэндлов."""
         for handle in self.resize_handles:
             handle._update_geometry()
             handle.raise_()
@@ -272,7 +258,6 @@ class MatteBlackWindow(QWidget):
     # ---------- Методы для сохранения/загрузки геометрии ----------
     
     def save_window_geometry(self):
-        """Сохраняет размер и позицию окна в конфиг."""
         try:
             config_dir = "config"
             config_file = os.path.join(config_dir, "settings.json")
@@ -300,7 +285,6 @@ class MatteBlackWindow(QWidget):
             print(f"Ошибка сохранения геометрии окна: {e}")
 
     def load_window_geometry(self):
-        """Загружает размер и позицию окна из конфига."""
         try:
             config_dir = "config"
             config_file = os.path.join(config_dir, "settings.json")
@@ -318,23 +302,18 @@ class MatteBlackWindow(QWidget):
             
             if all(v is not None for v in [x, y, width, height]):
                 screen = QApplication.primaryScreen().geometry()
-                
                 width = max(600, min(width, screen.width()))
                 height = max(400, min(height, screen.height()))
-                
                 x = max(0, min(x, screen.width() - width))
                 y = max(0, min(y, screen.height() - height))
-                
                 self.setGeometry(x, y, width, height)
                 
         except Exception as e:
             print(f"Ошибка загрузки геометрии окна: {e}")
 
     def resizeEvent(self, event):
-        """Обработчик изменения размера окна."""
         super().resizeEvent(event)
         self.update_resize_handles()
-        
         if not hasattr(self, '_resize_timer'):
             self._resize_timer = QTimer()
             self._resize_timer.setSingleShot(True)
@@ -343,7 +322,6 @@ class MatteBlackWindow(QWidget):
         self._resize_timer.start(300)
 
     def moveEvent(self, event):
-        """Обработчик перемещения окна."""
         super().moveEvent(event)
         if not hasattr(self, '_move_timer'):
             self._move_timer = QTimer()

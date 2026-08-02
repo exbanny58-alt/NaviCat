@@ -1,3 +1,5 @@
+# music_page.py
+
 import os
 import json
 from PyQt6.QtWidgets import (
@@ -10,7 +12,7 @@ from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush
 from PyQt6.QtSvg import QSvgRenderer
 from notifications import get_notification_manager
 from music_player import MusicPlayer
-from svg_icons import SVGIcon  # <-- ИМПОРТИРУЕМ SVGIcon
+from svg_icons import SVGIcon
 
 
 class TrackItemWidget(QWidget):
@@ -36,7 +38,7 @@ class TrackItemWidget(QWidget):
         
         # Название трека
         self.name_label = QLabel(track_name)
-        self.name_label.setStyleSheet("color: #cccccc; font-size: 14px;")
+        self.name_label.setStyleSheet("color: #cccccc; font-size: 14px; background-color: transparent;")
         self.name_label.setWordWrap(False)
         self.name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         layout.addWidget(self.name_label, 1)
@@ -54,21 +56,25 @@ class TrackItemWidget(QWidget):
                 padding: 4px;
             }
             QPushButton:hover {
-                background-color: #2a2a2a;
+                background-color: #3a3a3a;
             }
             QPushButton:pressed {
-                background-color: #3a3a3a;
+                background-color: #4a4a4a;
             }
         """)
         self.play_btn.setProperty("file_path", track_path)
         layout.addWidget(self.play_btn)
         
-        # Настройка для рисования прогресса
+        # Настройка для рисования прогресса и подчёркивания
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet("""
             TrackItemWidget {
                 background-color: transparent;
                 border-radius: 4px;
+                border-bottom: 1px solid #2a2a2a;
+            }
+            TrackItemWidget:hover {
+                background-color: #2a2a2a;
             }
         """)
         
@@ -97,8 +103,7 @@ class TrackItemWidget(QWidget):
         
         # Рисуем прогресс-бар только если есть прогресс
         if self.progress > 0.01:
-            # Серый цвет, светлее фона (фон #1a1a1a, наводка #2a2a2a)
-            # Используем #3a3a3a - светлее чем #2a2a2a
+            # Серый цвет, светлее фона
             progress_color = QColor(58, 58, 58, 200)  # #3a3a3a с альфа 200
             
             # Если курсор наведён на прогресс, показываем более яркий цвет
@@ -212,7 +217,17 @@ class MusicPage(QWidget):
         main_layout.setContentsMargins(30, 30, 30, 30)
         main_layout.setSpacing(0)
         
-        # Список треков с красивым скроллбаром
+        # Заголовок страницы
+        title_label = QLabel("Музыка")
+        title_label.setStyleSheet("color: #cccccc; font-size: 24px; font-weight: bold;")
+        main_layout.addWidget(title_label)
+        
+        # Отступ после заголовка
+        spacer = QLabel()
+        spacer.setFixedHeight(10)
+        main_layout.addWidget(spacer)
+        
+        # Список треков с красивым скроллбаром и подчёркиванием
         self.track_list_widget = QListWidget()
         self.track_list_widget.setStyleSheet("""
             QListWidget {
@@ -228,11 +243,18 @@ class MusicPage(QWidget):
             QListWidget::item {
                 padding: 0px;
                 border-radius: 4px;
-                margin: 2px 0;
+                margin: 0px;
+                background-color: transparent;
+                border-bottom: 1px solid #2a2a2a;
+            }
+            
+            QListWidget::item:last {
+                border-bottom: none;
             }
             
             QListWidget::item:hover {
                 background-color: #2a2a2a;
+                border-radius: 4px;
             }
             
             QListWidget::item:selected {
@@ -312,7 +334,7 @@ class MusicPage(QWidget):
         # Устанавливаем фиксированную высоту элементов
         self.track_list_widget.setUniformItemSizes(True)
         
-        main_layout.addWidget(self.track_list_widget)
+        main_layout.addWidget(self.track_list_widget, 1)
     
     def _load_music_path(self):
         """Загружает путь к музыке из конфига."""
@@ -335,7 +357,7 @@ class MusicPage(QWidget):
         if not self.music_path or not os.path.exists(self.music_path):
             item = QListWidgetItem("Папка с музыкой не выбрана")
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            item.setForeground(Qt.GlobalColor.gray)
+            item.setForeground(QColor(150, 150, 150))
             self.track_list_widget.addItem(item)
             return
         
@@ -369,7 +391,7 @@ class MusicPage(QWidget):
                         # Добавляем в список
                         item = QListWidgetItem()
                         item.setData(Qt.ItemDataRole.UserRole, full_path)
-                        item.setSizeHint(QSize(0, 50))
+                        item.setSizeHint(QSize(0, 52))
                         self.track_list_widget.addItem(item)
                         self.track_list_widget.setItemWidget(item, item_widget)
                         
@@ -381,13 +403,13 @@ class MusicPage(QWidget):
             if track_count == 0:
                 item = QListWidgetItem("Нет музыкальных файлов")
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                item.setForeground(Qt.GlobalColor.gray)
+                item.setForeground(QColor(150, 150, 150))
                 self.track_list_widget.addItem(item)
                 
         except Exception as e:
             item = QListWidgetItem(f"Ошибка: {str(e)}")
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            item.setForeground(Qt.GlobalColor.red)
+            item.setForeground(QColor(180, 80, 80))
             self.track_list_widget.addItem(item)
     
     def _on_play_clicked(self):
