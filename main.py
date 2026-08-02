@@ -26,6 +26,9 @@ def main():
         3000
     ))
     
+    # Сохраняем геометрию при закрытии приложения
+    app.aboutToQuit.connect(window.save_window_geometry)
+    
     sys.exit(app.exec())
 
 

@@ -147,3 +147,24 @@ class CustomTitleBar(QWidget):
             delta = event.globalPosition().toPoint() - self.drag_pos
             self.parent.move(self.parent.pos() + delta)
             self.drag_pos = event.globalPosition().toPoint()
+
+    # title_bar.py (обновить метод toggle_maximize)
+
+    def toggle_maximize(self):
+        from PyQt6.QtCore import QTimer
+        if self.parent.isMaximized():
+            self.parent.showNormal()
+            self.maximize_btn.setIcon(self.maximize_icon)
+            if hasattr(self.parent, 'save_window_geometry'):
+                QTimer.singleShot(100, self.parent.save_window_geometry)
+        else:
+            self.parent.showMaximized()
+            self.maximize_btn.setIcon(self.restore_icon)
+            if hasattr(self.parent, 'save_window_geometry'):
+                QTimer.singleShot(100, self.parent.save_window_geometry)
+
+    def mouseDoubleClickEvent(self, event):
+        """Двойной клик по заголовку для максимизации/восстановления."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.toggle_maximize()
+        super().mouseDoubleClickEvent(event)

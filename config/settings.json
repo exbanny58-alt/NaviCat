@@ -3,5 +3,9 @@
     "Путь до exe файла игры": "",
     "Путь до папки Workshop": "",
     "Путь до папки своих модов": "D:/dayzmanager/NaviCat",
-    "Путь до папки с музыкой": "E:/Music"
+    "Путь до папки с музыкой": "E:/Music",
+    "window_x": 120,
+    "window_y": 122,
+    "window_width": 1137,
+    "window_height": 731
 }
