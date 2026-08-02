@@ -113,7 +113,7 @@ class SettingsPage(QWidget):
         buttons_layout.addStretch()
 
         # Кнопка очистить
-        clear_btn = QPushButton("Очистить настройки")
+        clear_btn = QPushButton("Очистить")
         clear_btn.setStyleSheet("""
             QPushButton {
                 background-color: #3a1a1a;
@@ -138,7 +138,7 @@ class SettingsPage(QWidget):
         buttons_layout.addWidget(clear_btn)
 
         # Кнопка сохранить
-        save_btn = QPushButton("Сохранить настройки")
+        save_btn = QPushButton("Сохранить")
         save_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2a2a2a;

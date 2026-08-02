@@ -1,3 +1,5 @@
+# title_bar.py (обновлённая версия)
+
 from PyQt6.QtWidgets import QWidget, QPushButton, QHBoxLayout
 from PyQt6.QtCore import Qt, QPoint, QSize
 from svg_icons import SVGIcon
@@ -13,7 +15,6 @@ class CustomTitleBar(QWidget):
 
         # Кнопка-стрелка для меню
         self.toggle_btn = QPushButton()
-        # Используем новую иконку для открытия меню (по умолчанию меню открыто)
         self.toggle_btn.setIcon(SVGIcon.svg_to_icon(SVGIcon.create_menu_close_icon(), size=20))
         self.toggle_btn.setIconSize(QSize(20, 20))
         self.toggle_btn.setToolTip("Свернуть меню")
@@ -30,7 +31,7 @@ class CustomTitleBar(QWidget):
         """)
         self.toggle_btn.clicked.connect(self.parent.toggle_menu)
 
-        # Кнопка музыки
+        # Кнопка музыки - теперь просто вызывает on_menu_clicked(5)
         self.music_btn = QPushButton()
         self.music_btn.setIcon(SVGIcon.svg_to_icon(SVGIcon.create_music_icon("#aaaaaa"), size=20))
         self.music_btn.setIconSize(QSize(20, 20))
@@ -46,6 +47,7 @@ class CustomTitleBar(QWidget):
                 background-color: rgba(255, 255, 255, 0.1);
             }
         """)
+        # Теперь кнопка музыки использует ту же логику, что и меню
         self.music_btn.clicked.connect(self.parent.on_music_clicked)
 
         # Кнопки управления
@@ -129,11 +131,9 @@ class CustomTitleBar(QWidget):
 
     def update_toggle_icon(self, expanded):
         if expanded:
-            # Меню развёрнуто - показываем иконку закрытия (стрелка влево)
             icon = SVGIcon.svg_to_icon(SVGIcon.create_menu_close_icon(), size=20)
             self.toggle_btn.setToolTip("Свернуть меню")
         else:
-            # Меню свёрнуто - показываем иконку открытия (стрелка вправо)
             icon = SVGIcon.svg_to_icon(SVGIcon.create_menu_open_icon(), size=20)
             self.toggle_btn.setToolTip("Развернуть меню")
         self.toggle_btn.setIcon(icon)
