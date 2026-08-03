@@ -14,6 +14,7 @@ from PyQt6.QtGui import QPainter
 from svg_icons import SVGIcon
 from notifications import get_notification_manager
 from dialog import CustomDialog
+from symlink_manager import SymlinkManager
 
 
 class ServerItemWidget(QWidget):
@@ -27,7 +28,6 @@ class ServerItemWidget(QWidget):
         
         # Создаём иконку сервера с правильным размером и прозрачностью
         if mod_type == "ServerSide":
-            # Для ServerSide используем оранжевый цвет
             self.server_icon_on = self._create_icon(
                 SVGIcon.create_server_icon_2("#ff6644"),
                 20
@@ -37,7 +37,6 @@ class ServerItemWidget(QWidget):
                 20
             )
         else:
-            # Для обычных Server используем голубой
             self.server_icon_on = self._create_icon(
                 SVGIcon.create_server_icon_2("#44ddff"),
                 20
@@ -49,7 +48,6 @@ class ServerItemWidget(QWidget):
         
         self._setup_ui()
         
-        # Настройка hover эффекта
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet("""
             ServerItemWidget {
@@ -77,7 +75,6 @@ class ServerItemWidget(QWidget):
         layout.setContentsMargins(12, 6, 12, 6)
         layout.setSpacing(8)
         
-        # Иконка сервера (слева)
         self.icon_label = QLabel()
         self.icon_label.setFixedSize(24, 24)
         self.icon_label.setPixmap(self.server_icon_off.scaled(
@@ -88,13 +85,11 @@ class ServerItemWidget(QWidget):
         self.icon_label.setStyleSheet("background-color: transparent; border: none;")
         layout.addWidget(self.icon_label)
         
-        # Название мода
         name_label = QLabel(self.mod_data['name'])
         name_label.setStyleSheet("color: #cccccc; font-size: 14px; font-weight: 500; background-color: transparent;")
         name_label.setWordWrap(False)
         layout.addWidget(name_label, 1)
         
-        # Информация (автор, версия)
         info_parts = []
         if self.mod_data.get('author'):
             info_parts.append(self.mod_data['author'])
@@ -109,7 +104,6 @@ class ServerItemWidget(QWidget):
             info_label.setWordWrap(False)
             layout.addWidget(info_label)
         
-        # Тип мода
         if self.mod_type == "ServerSide":
             type_text = "Серверный"
             type_color = "#ff8844"
@@ -127,7 +121,6 @@ class ServerItemWidget(QWidget):
         """)
         layout.addWidget(type_label)
         
-        # Разделитель
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.VLine)
         sep.setStyleSheet("background-color: #333333; max-width: 1px;")
@@ -135,12 +128,10 @@ class ServerItemWidget(QWidget):
         sep.setFixedHeight(30)
         layout.addWidget(sep)
         
-        # Кнопка Подключить/Отключить
         self.connect_btn = QPushButton("Подключить")
         self.connect_btn.setFixedSize(120, 30)
         self.connect_btn.setCheckable(True)
         
-        # Разный стиль для ServerSide и Server
         if self.mod_type == "ServerSide":
             btn_style = """
                 QPushButton {
@@ -243,38 +234,34 @@ class ServerPage(QWidget):
         self.setStyleSheet("background-color: #1a1a1a;")
         self.notifications = get_notification_manager()
         
-        # Пути к конфигам
         self.config_dir = "config"
         self.mods_status_file = os.path.join(self.config_dir, "mods_status.json")
         self.server_connections_file = os.path.join(self.config_dir, "server_connections.json")
         
-        # Создаём папку config, если её нет
         if not os.path.exists(self.config_dir):
             os.makedirs(self.config_dir)
         
-        # Данные
-        self.server_mods = []  # Все моды (Server + ServerSide)
-        self.server_mods_only = []  # Только Server
-        self.serverside_mods_only = []  # Только ServerSide
-        self.mod_widgets = {}  # {mod_name: widget}
-        self.connections = {}  # {mod_name: True/False}
-        self.last_status_hash = ""  # Хеш для отслеживания изменений
+        self.server_mods = []
+        self.server_mods_only = []
+        self.serverside_mods_only = []
+        self.mod_widgets = {}
+        self.connections = {}
+        self.last_status_hash = ""
         
-        # Пути из настроек
         self.workshop_path = ""
         self.custom_path = ""
+        
+        self.symlink_manager = SymlinkManager()
         
         self._load_paths()
         self._load_connections()
         self._setup_ui()
         
-        # Таймер для автоматического обновления
         self.auto_refresh_timer = QTimer()
-        self.auto_refresh_timer.setInterval(2000)  # 2 секунды
+        self.auto_refresh_timer.setInterval(2000)
         self.auto_refresh_timer.timeout.connect(self._check_and_refresh)
         self.auto_refresh_timer.start()
         
-        # Загружаем моды
         QTimer.singleShot(200, self.load_server_mods)
     
     def _load_paths(self):
@@ -296,7 +283,15 @@ class ServerPage(QWidget):
             try:
                 with open(self.server_connections_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    self.connections = data
+                    if data and isinstance(data, dict):
+                        first_value = next(iter(data.values())) if data else None
+                        if isinstance(first_value, dict):
+                            self.connections = {mod_name: info.get("connected", False) 
+                                              for mod_name, info in data.items()}
+                        else:
+                            self.connections = data
+                    else:
+                        self.connections = {}
             except Exception as e:
                 print(f"Ошибка загрузки подключений: {e}")
                 self.connections = {}
@@ -304,14 +299,30 @@ class ServerPage(QWidget):
             self.connections = {}
     
     def _save_connections(self):
-        """Сохраняет ВСЕ состояния подключений в файл."""
+        """Сохраняет ВСЕ состояния подключений в файл с путями к симлинкам."""
         try:
             connections = {}
             for mod_name, widget in self.mod_widgets.items():
-                connections[mod_name] = widget.get_connection_state()
+                server_path = self._get_server_path()
+                if server_path:
+                    symlink_exists = self.symlink_manager.check_symlink_exists(mod_name, server_path)
+                    if widget.get_connection_state() or symlink_exists:
+                        symlink_path = None
+                        if server_path:
+                            symlink_name = f"@{mod_name}"
+                            symlink_path = os.path.join(server_path, symlink_name)
+                            if not os.path.exists(symlink_path):
+                                symlink_path = None
+                        
+                        connections[mod_name] = {
+                            "connected": widget.get_connection_state(),
+                            "symlink_path": symlink_path,
+                            "mod_type": "Server"
+                        }
             
             with open(self.server_connections_file, 'w', encoding='utf-8') as f:
                 json.dump(connections, f, ensure_ascii=False, indent=4)
+                
         except Exception as e:
             print(f"Ошибка сохранения подключений: {e}")
     
@@ -340,7 +351,6 @@ class ServerPage(QWidget):
         main_layout.setSpacing(20)
         main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        # Заголовок с кнопками
         header_layout = QHBoxLayout()
         header_layout.setSpacing(15)
         header_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -351,7 +361,6 @@ class ServerPage(QWidget):
         
         header_layout.addStretch()
         
-        # Кнопка "Подключить все/Отключить все"
         self.toggle_all_btn = QPushButton("Подключить все")
         self.toggle_all_btn.setFixedSize(160, 36)
         self.toggle_all_btn.setStyleSheet("""
@@ -375,7 +384,6 @@ class ServerPage(QWidget):
         self.toggle_all_btn.clicked.connect(self._toggle_all_connections)
         header_layout.addWidget(self.toggle_all_btn)
         
-        # Кнопка "Очистить CFG"
         self.clear_cfg_btn = QPushButton("🗑️ Очистить CFG")
         self.clear_cfg_btn.setFixedSize(160, 36)
         self.clear_cfg_btn.setStyleSheet("""
@@ -399,7 +407,6 @@ class ServerPage(QWidget):
         self.clear_cfg_btn.clicked.connect(self._clear_server_cfg)
         header_layout.addWidget(self.clear_cfg_btn)
         
-        # Кнопка обновления с иконкой
         self.refresh_btn = QPushButton()
         self.refresh_btn.setIcon(SVGIcon.svg_to_icon(
             SVGIcon.create_refresh_icon("#aaaaaa"),
@@ -428,7 +435,6 @@ class ServerPage(QWidget):
         
         main_layout.addLayout(header_layout)
         
-        # Список модов
         self.mods_list = QListWidget()
         self.mods_list.setStyleSheet("""
             QListWidget {
@@ -468,7 +474,6 @@ class ServerPage(QWidget):
                 border-radius: 4px;
             }
             
-            /* Кастомный скроллбар */
             QScrollBar:vertical {
                 background-color: #1a1a1a;
                 border: none;
@@ -542,53 +547,19 @@ class ServerPage(QWidget):
         
         main_layout.addWidget(self.mods_list, 1)
     
-    def _clear_server_cfg(self):
-        """Очищает конфиг серверных подключений."""
-        confirmed = CustomDialog.question(
-            self,
-            "Очистка CFG сервера",
-            "Вы действительно хотите очистить все серверные подключения?\n\n"
-            "Это действие нельзя отменить.",
-            default=False
-        )
-        
-        if not confirmed:
-            return
-        
+    def _get_server_path(self):
+        """Возвращает путь к серверу из настроек."""
         try:
-            # Удаляем файл конфига
-            if os.path.exists(self.server_connections_file):
-                os.remove(self.server_connections_file)
-                self.connections = {}
-                
-                # Сбрасываем состояние всех виджетов
-                for widget in self.mod_widgets.values():
-                    widget.set_connected_state(False)
-                
-                # Обновляем кнопку "Подключить все"
-                self._update_toggle_all_button()
-                
-                # ПЕРЕЗАГРУЖАЕМ СПИСОК
-                self.load_server_mods()
-                
-                self.notifications.show_success(
-                    "CFG сервера очищен",
-                    "Все подключения удалены",
-                    3000
-                )
-            else:
-                self.notifications.show_info(
-                    "CFG уже пуст",
-                    "Файл конфигурации не существует",
-                    3000
-                )
+            config_file = os.path.join(self.config_dir, "settings.json")
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                    return settings.get("Путь до сервера", "").replace('\\', '/')
+            return ""
         except Exception as e:
-            self.notifications.show_error(
-                "Ошибка очистки",
-                str(e),
-                5000
-            )
-
+            print(f"Ошибка получения пути к серверу: {e}")
+            return ""
+    
     def _toggle_all_connections(self):
         """Переключает состояние всех модов (подключить все/отключить все)."""
         if not self.mod_widgets:
@@ -599,24 +570,18 @@ class ServerPage(QWidget):
             )
             return
         
-        # Проверяем, все ли моды уже подключены
         all_connected = True
         for widget in self.mod_widgets.values():
             if not widget.get_connection_state():
                 all_connected = False
                 break
         
-        # Если все подключены - отключаем все, иначе - подключаем все
         new_state = not all_connected
         
-        # Меняем состояние всех модов
         for widget in self.mod_widgets.values():
-            widget.set_connected_state(new_state)
+            mod_data = widget.mod_data
+            self._on_connection_toggled(mod_data, new_state)
         
-        # Сохраняем состояния
-        self._save_connections()
-        
-        # Обновляем текст кнопки
         if new_state:
             self.toggle_all_btn.setText("Отключить все")
             self.notifications.show_success(
@@ -632,9 +597,58 @@ class ServerPage(QWidget):
                 3000
             )
     
+    def _clear_server_cfg(self):
+        """Очищает конфиг серверных подключений и удаляет симлинки."""
+        confirmed = CustomDialog.question(
+            self,
+            "Очистка CFG сервера",
+            "Вы действительно хотите очистить все серверные подключения?\n\n"
+            "Будут удалены все симлинки из папки сервера.\n"
+            "Это действие нельзя отменить.",
+            default=False
+        )
+        
+        if not confirmed:
+            return
+        
+        try:
+            server_path = self._get_server_path()
+            
+            removed_count = 0
+            for mod_name in list(self.connections.keys()):
+                if self.symlink_manager.remove_symlink(mod_name, server_path):
+                    removed_count += 1
+            
+            if os.path.exists(self.server_connections_file):
+                os.remove(self.server_connections_file)
+                self.connections = {}
+                
+                for widget in self.mod_widgets.values():
+                    widget.set_connected_state(False)
+                
+                self._update_toggle_all_button()
+                self.load_server_mods()
+                
+                self.notifications.show_success(
+                    "CFG сервера очищен",
+                    f"Удалено {removed_count} симлинков",
+                    3000
+                )
+            else:
+                self.notifications.show_info(
+                    "CFG уже пуст",
+                    "Файл конфигурации не существует",
+                    3000
+                )
+        except Exception as e:
+            self.notifications.show_error(
+                "Ошибка очистки",
+                str(e),
+                5000
+            )
+    
     def load_server_mods(self):
         """Загружает моды с Server и ServerSide статусами."""
-        # Принудительно перезагружаем подключения из файла
         self._load_connections()
         
         self.mods_list.clear()
@@ -643,7 +657,6 @@ class ServerPage(QWidget):
         self.server_mods_only = []
         self.serverside_mods_only = []
         
-        # Проверяем пути
         if not self.workshop_path and not self.custom_path:
             self._show_empty_state("Пути к папкам модов не заданы в настройках")
             return
@@ -658,17 +671,14 @@ class ServerPage(QWidget):
             self._show_empty_state("Указанные папки не существуют")
             return
         
-        # Проверяем файл статусов
         if not os.path.exists(self.mods_status_file):
             self._show_empty_state("Нет отмеченных Server-модов\n\nОтметьте моды как Server на странице 'Моды'")
             return
         
         try:
-            # Загружаем статусы модов
             with open(self.mods_status_file, 'r', encoding='utf-8') as f:
                 mods_status = json.load(f)
             
-            # Фильтруем моды с Server и ServerSide статусами
             server_mod_names = []
             serverside_mod_names = []
             
@@ -678,12 +688,10 @@ class ServerPage(QWidget):
                 if statuses.get('ServerSide', False):
                     serverside_mod_names.append(mod_name)
             
-            # Если нет никаких серверных модов
             if not server_mod_names and not serverside_mod_names:
                 self._show_empty_state("Нет отмеченных Server-модов\n\nОтметьте моды как Server на странице 'Моды'")
                 return
             
-            # Загружаем полную информацию о модах
             all_mod_names = list(set(server_mod_names + serverside_mod_names))
             self._load_mod_data(all_mod_names, server_mod_names, serverside_mod_names)
             
@@ -695,32 +703,23 @@ class ServerPage(QWidget):
         """Загружает полные данные о модах из папок."""
         all_mods = []
         
-        # Сканируем Workshop
         if self.workshop_path and os.path.exists(self.workshop_path):
             workshop_mods = self._scan_workshop(self.workshop_path)
             all_mods.extend(workshop_mods)
         
-        # Сканируем кастомные
         if self.custom_path and os.path.exists(self.custom_path):
             custom_mods = self._scan_custom(self.custom_path)
             all_mods.extend(custom_mods)
         
-        # Фильтруем только нужные моды
         self.server_mods = [mod for mod in all_mods if mod['name'] in all_mod_names]
-        
-        # Разделяем по типам
         self.server_mods_only = [mod for mod in self.server_mods if mod['name'] in server_mod_names]
         self.serverside_mods_only = [mod for mod in self.server_mods if mod['name'] in serverside_mod_names]
         
-        # Сортируем по имени
         self.server_mods.sort(key=lambda x: x['name'].lower())
         self.server_mods_only.sort(key=lambda x: x['name'].lower())
         self.serverside_mods_only.sort(key=lambda x: x['name'].lower())
         
-        # Отображаем
         self._display_mods()
-        
-        # Обновляем состояние кнопки "Подключить все"
         self._update_toggle_all_button()
         
         if self.server_mods:
@@ -837,37 +836,30 @@ class ServerPage(QWidget):
             self._show_empty_state("Нет Server-модов для отображения")
             return
         
-        # Сначала показываем Server моды, потом ServerSide
         for mod in self.server_mods_only:
             self._add_mod_to_list(mod, "Server")
         
         for mod in self.serverside_mods_only:
             self._add_mod_to_list(mod, "ServerSide")
         
-        # Обновляем состояние кнопки "Подключить все"
         self._update_toggle_all_button()
     
     def _add_mod_to_list(self, mod, mod_type):
         """Добавляет мод в список с указанным типом."""
-        # Создаём виджет
         item_widget = ServerItemWidget(mod, mod_type)
         
-        # Восстанавливаем состояние подключения
         if mod['name'] in self.connections:
             is_connected = self.connections[mod['name']]
             item_widget.set_connected_state(is_connected)
         else:
             item_widget.set_connected_state(False)
         
-        # Подключаем сигнал изменения состояния
         item_widget.connect_btn.clicked.connect(
             lambda checked, m=mod: self._on_connection_toggled(m, checked)
         )
         
-        # Сохраняем виджет
         self.mod_widgets[mod['name']] = item_widget
         
-        # Добавляем в список
         item = QListWidgetItem()
         item.setData(Qt.ItemDataRole.UserRole, mod)
         item.setSizeHint(QSize(0, 42))
@@ -876,24 +868,47 @@ class ServerPage(QWidget):
     
     def _on_connection_toggled(self, mod_data, checked):
         """Обработчик переключения подключения."""
+        server_path = self._get_server_path()
+        
+        if not server_path:
+            self.notifications.show_error(
+                "Путь не найден",
+                "Не задан путь к серверу в настройках",
+                5000
+            )
+            widget = self.mod_widgets.get(mod_data['name'])
+            if widget:
+                widget.set_connected_state(False)
+            return
+        
         if checked:
-            self.notifications.show_success(
-                f"Мод подключён: {mod_data['name']}",
-                "Готов к использованию",
-                3000
+            success, symlink_path = self.symlink_manager.create_symlink(
+                mod_data, 
+                server_path, 
+                "Server"
             )
+            if success:
+                self._save_connections()
+                self._update_toggle_all_button()
+                self.notifications.show_success(
+                    f"Мод подключён: {mod_data['name']}",
+                    f"Симлинк создан: {os.path.basename(symlink_path)}",
+                    3000
+                )
+            else:
+                widget = self.mod_widgets.get(mod_data['name'])
+                if widget:
+                    widget.set_connected_state(False)
         else:
-            self.notifications.show_info(
-                f"Мод отключён: {mod_data['name']}",
-                "Подключение разорвано",
-                3000
-            )
-        
-        # Сохраняем ВСЕ состояния
-        self._save_connections()
-        
-        # Обновляем состояние кнопки "Подключить все"
-        self._update_toggle_all_button()
+            success = self.symlink_manager.remove_symlink(mod_data['name'], server_path)
+            if success:
+                self._save_connections()
+                self._update_toggle_all_button()
+                self.notifications.show_info(
+                    f"Мод отключён: {mod_data['name']}",
+                    "Симлинк удалён",
+                    3000
+                )
     
     def _show_empty_state(self, message):
         """Показывает сообщение о пустом списке."""
@@ -913,7 +928,6 @@ class ServerPage(QWidget):
         """Возвращает словарь подключённых Server модов (без ServerSide)."""
         result = {}
         for mod_name, widget in self.mod_widgets.items():
-            # Проверяем, что это Server мод (не ServerSide)
             if hasattr(widget, 'mod_type') and widget.mod_type == "Server" and widget.get_connection_state():
                 result[mod_name] = True
         return result

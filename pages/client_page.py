@@ -14,6 +14,7 @@ from PyQt6.QtGui import QPainter
 from svg_icons import SVGIcon
 from notifications import get_notification_manager
 from dialog import CustomDialog
+from symlink_manager import SymlinkManager
 
 
 class ClientItemWidget(QWidget):
@@ -203,12 +204,15 @@ class ClientPage(QWidget):
         # Данные
         self.client_mods = []
         self.mod_widgets = {}  # {mod_name: widget}
-        self.connections = {}  # {mod_name: True/False}
+        self.connections = {}  # {mod_name: True/False или {connected: True, symlink_path: "..."}}
         self.last_status_hash = ""  # Хеш для отслеживания изменений
         
         # Пути из настроек
         self.workshop_path = ""
         self.custom_path = ""
+        
+        # Менеджер симлинков
+        self.symlink_manager = SymlinkManager()
         
         self._load_paths()
         self._load_connections()
@@ -242,7 +246,19 @@ class ClientPage(QWidget):
             try:
                 with open(self.client_connections_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    self.connections = data
+                    # Поддерживаем как старый формат (простой словарь), так и новый (с symlink_path)
+                    if data and isinstance(data, dict):
+                        # Проверяем первый элемент, чтобы понять формат
+                        first_value = next(iter(data.values())) if data else None
+                        if isinstance(first_value, dict):
+                            # Новый формат: {"mod_name": {"connected": True, "symlink_path": "..."}}
+                            self.connections = {mod_name: info.get("connected", False) 
+                                              for mod_name, info in data.items()}
+                        else:
+                            # Старый формат: {"mod_name": True/False}
+                            self.connections = data
+                    else:
+                        self.connections = {}
             except Exception as e:
                 print(f"Ошибка загрузки подключений: {e}")
                 self.connections = {}
@@ -250,14 +266,32 @@ class ClientPage(QWidget):
             self.connections = {}
     
     def _save_connections(self):
-        """Сохраняет ВСЕ состояния подключений в файл."""
+        """Сохраняет ВСЕ состояния подключений в файл с путями к симлинкам."""
         try:
             connections = {}
             for mod_name, widget in self.mod_widgets.items():
-                connections[mod_name] = widget.get_connection_state()
+                # Проверяем, есть ли симлинк для этого мода
+                client_path = self._get_client_path()
+                if client_path:
+                    symlink_exists = self.symlink_manager.check_symlink_exists(mod_name, client_path)
+                    if widget.get_connection_state() or symlink_exists:
+                        # Если мод подключен или симлинк существует
+                        symlink_path = None
+                        if client_path:
+                            symlink_name = f"@{mod_name}"
+                            symlink_path = os.path.join(client_path, symlink_name)
+                            if not os.path.exists(symlink_path):
+                                symlink_path = None
+                        
+                        connections[mod_name] = {
+                            "connected": widget.get_connection_state(),
+                            "symlink_path": symlink_path,
+                            "mod_type": "Client"
+                        }
             
             with open(self.client_connections_file, 'w', encoding='utf-8') as f:
                 json.dump(connections, f, ensure_ascii=False, indent=4)
+                
         except Exception as e:
             print(f"Ошибка сохранения подключений: {e}")
     
@@ -266,7 +300,15 @@ class ClientPage(QWidget):
         if os.path.exists(self.server_connections_file):
             try:
                 with open(self.server_connections_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    if data and isinstance(data, dict):
+                        first_value = next(iter(data.values())) if data else None
+                        if isinstance(first_value, dict):
+                            return {mod_name: info.get("connected", False) 
+                                   for mod_name, info in data.items()}
+                        else:
+                            return data
+                    return {}
             except Exception as e:
                 print(f"Ошибка загрузки серверных подключений: {e}")
                 return {}
@@ -275,30 +317,24 @@ class ClientPage(QWidget):
     def _mark_mods_as_client(self, mod_names):
         """Отмечает моды как Client в mods_status.json."""
         try:
-            # Загружаем текущие статусы
             if os.path.exists(self.mods_status_file):
                 with open(self.mods_status_file, 'r', encoding='utf-8') as f:
                     mods_status = json.load(f)
             else:
                 mods_status = {}
             
-            # Отмечаем каждый мод как Client
             added_count = 0
             for mod_name in mod_names:
                 if mod_name not in mods_status:
                     mods_status[mod_name] = {}
                 
-                # Если Client ещё не отмечен
                 if not mods_status[mod_name].get('Client', False):
                     mods_status[mod_name]['Client'] = True
                     added_count += 1
             
-            # Сохраняем изменения
             if added_count > 0:
                 with open(self.mods_status_file, 'w', encoding='utf-8') as f:
                     json.dump(mods_status, f, ensure_ascii=False, indent=4)
-                
-                # Отправляем сигнал об обновлении статусов
                 self.mods_status_changed.emit()
                 print(f"Отмечено {added_count} модов как Client")
             
@@ -566,6 +602,21 @@ class ClientPage(QWidget):
         
         main_layout.addWidget(self.mods_list, 1)
     
+    def _get_client_path(self):
+        """Возвращает путь к клиенту (игре) из настроек."""
+        try:
+            config_file = os.path.join(self.config_dir, "settings.json")
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                    exe_path = settings.get("Путь до exe файла игры", "").replace('\\', '/')
+                    if exe_path:
+                        return os.path.dirname(exe_path)
+            return ""
+        except Exception as e:
+            print(f"Ошибка получения пути к клиенту: {e}")
+            return ""
+    
     def _toggle_all_connections(self):
         """Переключает состояние всех модов (подключить все/отключить все)."""
         if not self.mod_widgets:
@@ -583,15 +634,14 @@ class ClientPage(QWidget):
                 all_connected = False
                 break
         
-        # Если все подключены - отключаем все, иначе - подключаем все
         new_state = not all_connected
         
-        # Меняем состояние всех модов
         for widget in self.mod_widgets.values():
+            # Имитируем нажатие кнопки для каждого мода
             widget.set_connected_state(new_state)
-        
-        # Сохраняем состояния
-        self._save_connections()
+            # Вызываем обработчик для создания/удаления симлинка
+            mod_data = widget.mod_data
+            self._on_connection_toggled(mod_data, new_state)
         
         # Обновляем текст кнопки
         if new_state:
@@ -610,11 +660,12 @@ class ClientPage(QWidget):
             )
     
     def _clear_client_cfg(self):
-        """Очищает конфиг клиентских подключений."""
+        """Очищает конфиг клиентских подключений и удаляет симлинки."""
         confirmed = CustomDialog.question(
             self,
             "Очистка CFG клиента",
             "Вы действительно хотите очистить все клиентские подключения?\n\n"
+            "Будут удалены все симлинки из папки игры.\n"
             "Это действие нельзя отменить.",
             default=False
         )
@@ -623,6 +674,15 @@ class ClientPage(QWidget):
             return
         
         try:
+            # Получаем путь к клиенту
+            client_path = self._get_client_path()
+            
+            # Удаляем все симлинки клиента
+            removed_count = 0
+            for mod_name in list(self.connections.keys()):
+                if self.symlink_manager.remove_symlink(mod_name, client_path):
+                    removed_count += 1
+            
             # Удаляем файл конфига
             if os.path.exists(self.client_connections_file):
                 os.remove(self.client_connections_file)
@@ -632,15 +692,12 @@ class ClientPage(QWidget):
                 for widget in self.mod_widgets.values():
                     widget.set_connected_state(False)
                 
-                # Обновляем кнопку "Подключить все"
                 self._update_toggle_all_button()
-                
-                # ПЕРЕЗАГРУЖАЕМ СПИСОК
                 self.load_client_mods()
                 
                 self.notifications.show_success(
                     "CFG клиента очищен",
-                    "Все подключения удалены",
+                    f"Удалено {removed_count} симлинков",
                     3000
                 )
             else:
@@ -655,10 +712,9 @@ class ClientPage(QWidget):
                 str(e),
                 5000
             )
-                
+    
     def _on_connect_server_clicked(self):
         """Подключает моды, которые отмечены на странице сервера (только Server, не ServerSide)."""
-        # Загружаем серверные подключения
         server_connections = self._load_server_connections()
         
         if not server_connections:
@@ -669,10 +725,8 @@ class ClientPage(QWidget):
             )
             return
         
-        # Получаем список имён модов из серверного конфига
         server_mod_names = list(server_connections.keys())
         
-        # Проверяем, есть ли ServerSide моды (они не должны подключаться на клиент)
         serverside_mods = []
         if os.path.exists(self.mods_status_file):
             try:
@@ -685,7 +739,6 @@ class ClientPage(QWidget):
             except Exception as e:
                 print(f"Ошибка проверки ServerSide модов: {e}")
         
-        # Фильтруем ServerSide моды
         filtered_mod_names = [mod for mod in server_mod_names if mod not in serverside_mods]
         
         if not filtered_mod_names:
@@ -696,7 +749,6 @@ class ClientPage(QWidget):
             )
             return
         
-        # Если есть ServerSide моды, показываем предупреждение
         if serverside_mods:
             self.notifications.show_warning(
                 "ServerSide моды исключены",
@@ -706,7 +758,6 @@ class ClientPage(QWidget):
                 5000
             )
         
-        # Спрашиваем подтверждение
         confirmed = CustomDialog.question(
             self,
             "Подключение модов сервера",
@@ -720,7 +771,6 @@ class ClientPage(QWidget):
         if not confirmed:
             return
         
-        # Отмечаем моды как Client в mods_status.json
         marked_count = self._mark_mods_as_client(filtered_mod_names)
         
         if marked_count > 0:
@@ -729,28 +779,19 @@ class ClientPage(QWidget):
                 f"Отмечено {marked_count} новых модов",
                 3000
             )
-            
-            # Обновляем хеш, чтобы принудительно обновить список
             self.last_status_hash = ""
-            
-            # Ждём обновления списка через таймер
             QTimer.singleShot(100, self._connect_server_mods)
         else:
-            # Если новых модов не отмечено, просто подключаем существующие
             self._connect_server_mods()
     
     def _connect_server_mods(self):
         """Подключает серверные моды (внутренний метод)."""
-        # Перезагружаем список модов
         self.load_client_mods()
-        
-        # Загружаем серверные подключения
         server_connections = self._load_server_connections()
         
         if not server_connections:
             return
         
-        # Подключаем моды
         connected_count = 0
         not_found_count = 0
         already_connected = 0
@@ -760,7 +801,7 @@ class ClientPage(QWidget):
             if mod_name in self.mod_widgets:
                 widget = self.mod_widgets[mod_name]
                 if not widget.get_connection_state():
-                    widget.set_connected_state(True)
+                    self._on_connection_toggled(widget.mod_data, True)
                     connected_count += 1
                 else:
                     already_connected += 1
@@ -768,13 +809,9 @@ class ClientPage(QWidget):
                 not_found_count += 1
                 not_found_mods.append(mod_name)
         
-        # Сохраняем состояния
         self._save_connections()
-        
-        # Обновляем кнопку "Подключить все"
         self._update_toggle_all_button()
         
-        # Показываем уведомление
         if connected_count > 0:
             self.notifications.show_success(
                 "Моды сервера подключены",
@@ -797,24 +834,15 @@ class ClientPage(QWidget):
                 f"{'...' if len(not_found_mods) > 5 else ''}",
                 5000
             )
-        
-        if connected_count == 0 and already_connected == 0 and not_found_count == 0:
-            self.notifications.show_info(
-                "Нет изменений",
-                "Все серверные моды уже подключены",
-                3000
-            )
     
     def load_client_mods(self):
         """Загружает моды с Client-статусом."""
-        # Принудительно перезагружаем подключения из файла
         self._load_connections()
         
         self.mods_list.clear()
         self.mod_widgets.clear()
         self.client_mods = []
         
-        # Проверяем пути
         if not self.workshop_path and not self.custom_path:
             self._show_empty_state("Пути к папкам модов не заданы в настройках")
             return
@@ -829,17 +857,14 @@ class ClientPage(QWidget):
             self._show_empty_state("Указанные папки не существуют")
             return
         
-        # Проверяем файл статусов
         if not os.path.exists(self.mods_status_file):
             self._show_empty_state("Нет отмеченных Client-модов\n\nОтметьте моды как Client на странице 'Моды'")
             return
         
         try:
-            # Загружаем статусы модов
             with open(self.mods_status_file, 'r', encoding='utf-8') as f:
                 mods_status = json.load(f)
             
-            # Фильтруем моды с Client-статусом
             client_mod_names = []
             for mod_name, statuses in mods_status.items():
                 if statuses.get('Client', False):
@@ -849,7 +874,6 @@ class ClientPage(QWidget):
                 self._show_empty_state("Нет отмеченных Client-модов\n\nОтметьте моды как Client на странице 'Моды'")
                 return
             
-            # Загружаем полную информацию о модах
             self._load_mod_data(client_mod_names)
             
         except Exception as e:
@@ -860,26 +884,18 @@ class ClientPage(QWidget):
         """Загружает полные данные о модах из папок."""
         all_mods = []
         
-        # Сканируем Workshop
         if self.workshop_path and os.path.exists(self.workshop_path):
             workshop_mods = self._scan_workshop(self.workshop_path)
             all_mods.extend(workshop_mods)
         
-        # Сканируем кастомные
         if self.custom_path and os.path.exists(self.custom_path):
             custom_mods = self._scan_custom(self.custom_path)
             all_mods.extend(custom_mods)
         
-        # Фильтруем только Client-моды
         self.client_mods = [mod for mod in all_mods if mod['name'] in client_mod_names]
-        
-        # Сортируем по имени
         self.client_mods.sort(key=lambda x: x['name'].lower())
         
-        # Отображаем
         self._display_mods()
-        
-        # Обновляем состояние кнопки "Подключить все"
         self._update_toggle_all_button()
         
         if self.client_mods:
@@ -997,54 +1013,71 @@ class ClientPage(QWidget):
             return
         
         for mod in self.client_mods:
-            # Создаём виджет
             item_widget = ClientItemWidget(mod)
             
-            # Восстанавливаем состояние подключения
             if mod['name'] in self.connections:
                 is_connected = self.connections[mod['name']]
                 item_widget.set_connected_state(is_connected)
             else:
                 item_widget.set_connected_state(False)
             
-            # Подключаем сигнал изменения состояния
             item_widget.connect_btn.clicked.connect(
                 lambda checked, m=mod: self._on_connection_toggled(m, checked)
             )
             
-            # Сохраняем виджет
             self.mod_widgets[mod['name']] = item_widget
             
-            # Добавляем в список
             item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, mod)
             item.setSizeHint(QSize(0, 42))
             self.mods_list.addItem(item)
             self.mods_list.setItemWidget(item, item_widget)
         
-        # Обновляем состояние кнопки "Подключить все"
         self._update_toggle_all_button()
     
     def _on_connection_toggled(self, mod_data, checked):
         """Обработчик переключения подключения."""
+        client_path = self._get_client_path()
+        
+        if not client_path:
+            self.notifications.show_error(
+                "Путь не найден",
+                "Не задан путь к exe файлу игры в настройках",
+                5000
+            )
+            widget = self.mod_widgets.get(mod_data['name'])
+            if widget:
+                widget.set_connected_state(False)
+            return
+        
         if checked:
-            self.notifications.show_success(
-                f"Мод подключён: {mod_data['name']}",
-                "Готов к использованию",
-                3000
+            success, symlink_path = self.symlink_manager.create_symlink(
+                mod_data, 
+                client_path, 
+                "Client"
             )
+            if success:
+                self._save_connections()
+                self._update_toggle_all_button()
+                self.notifications.show_success(
+                    f"Мод подключён: {mod_data['name']}",
+                    f"Симлинк создан: {os.path.basename(symlink_path)}",
+                    3000
+                )
+            else:
+                widget = self.mod_widgets.get(mod_data['name'])
+                if widget:
+                    widget.set_connected_state(False)
         else:
-            self.notifications.show_info(
-                f"Мод отключён: {mod_data['name']}",
-                "Подключение разорвано",
-                3000
-            )
-        
-        # Сохраняем ВСЕ состояния
-        self._save_connections()
-        
-        # Обновляем состояние кнопки "Подключить все"
-        self._update_toggle_all_button()
+            success = self.symlink_manager.remove_symlink(mod_data['name'], client_path)
+            if success:
+                self._save_connections()
+                self._update_toggle_all_button()
+                self.notifications.show_info(
+                    f"Мод отключён: {mod_data['name']}",
+                    "Симлинк удалён",
+                    3000
+                )
     
     def _show_empty_state(self, message):
         """Показывает сообщение о пустом списке."""

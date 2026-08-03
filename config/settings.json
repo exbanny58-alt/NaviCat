@@ -1,11 +1,11 @@
 {
-    "Путь до сервера": "",
-    "Путь до exe файла игры": "",
+    "Путь до сервера": "C:/Program Files (x86)/Steam/steamapps/common/DayZServer",
+    "Путь до exe файла игры": "C:/Program Files (x86)/Steam/steamapps/common/DayZ/DayZ_x64.exe",
     "Путь до папки Workshop": "C:/Program Files (x86)/Steam/steamapps/workshop/content/221100",
     "Путь до папки своих модов": "",
     "Путь до папки с музыкой": "E:/Music",
-    "window_x": 180,
-    "window_y": 146,
+    "window_x": 162,
+    "window_y": 382,
     "window_width": 1019,
     "window_height": 679
 }
