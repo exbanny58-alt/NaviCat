@@ -1,3 +1,5 @@
+# dialog.py
+
 from PyQt6.QtWidgets import (
     QDialog, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QApplication
@@ -21,6 +23,23 @@ class CustomDialog(QDialog):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
+        # ПЕРЕОПРЕДЕЛЯЕМ СТИЛИ для этого диалога (игнорируем глобальные)
+        self.setStyleSheet("""
+            QDialog {
+                background: transparent;
+                border: none;
+            }
+            QDialog QFrame#container {
+                background-color: #2a2a2a;
+                border: none;
+                border-radius: 10px;
+            }
+            QDialog QLabel {
+                color: #cccccc;
+                background-color: transparent;
+            }
+        """)
+        
         self.title_text = title
         self.message_text = text
         self.icon_type = icon_type
@@ -39,13 +58,7 @@ class CustomDialog(QDialog):
     def _setup_ui(self):
         container = QFrame(self)
         container.setObjectName("container")
-        container.setStyleSheet("""
-            QFrame#container {
-                background-color: #2a2a2a;
-                border: 1px solid #444444;
-                border-radius: 10px;
-            }
-        """)
+        # Убираем стили из кода, они теперь в self.setStyleSheet
         
         main_layout = QVBoxLayout(container)
         main_layout.setContentsMargins(20, 20, 20, 20)
@@ -54,7 +67,7 @@ class CustomDialog(QDialog):
         # Заголовок (область для перетаскивания)
         header_layout = QHBoxLayout()
         title_label = QLabel(self.title_text)
-        title_label.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: bold;")
+        title_label.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: bold; background-color: transparent;")
         header_layout.addWidget(title_label, 1)
         
         close_btn = QPushButton("✕")
@@ -80,7 +93,7 @@ class CustomDialog(QDialog):
         # Разделитель
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet("background-color: #444444; max-height: 1px;")
+        sep.setStyleSheet("background-color: #444444; max-height: 1px; border: none;")
         main_layout.addWidget(sep)
         
         # Содержимое: иконка + текст
@@ -98,7 +111,7 @@ class CustomDialog(QDialog):
         content_layout.addWidget(icon_label)
         
         self.message_label = QLabel(self.message_text)
-        self.message_label.setStyleSheet("color: #cccccc; font-size: 14px;")
+        self.message_label.setStyleSheet("color: #cccccc; font-size: 14px; background-color: transparent;")
         self.message_label.setWordWrap(True)
         self.message_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         content_layout.addWidget(self.message_label, 1)
@@ -194,17 +207,23 @@ class CustomDialog(QDialog):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Тень
         shadow = QColor(0, 0, 0, 80)
         painter.setBrush(QBrush(shadow))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(8, 8, self.width() - 16, self.height() - 16, 12, 12)
+        
+        # Рисуем сам диалог без обводки
+        painter.setBrush(QBrush(QColor(42, 42, 42)))
+        painter.setPen(Qt.PenStyle.NoPen)  # Убираем обводку полностью
+        painter.drawRoundedRect(0, 0, self.width(), self.height(), 10, 10)
+        
         super().paintEvent(event)
     
     # ---------- Перетаскивание окна за заголовок ----------
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            # Разрешаем перетаскивание только если клик в верхней части (заголовок)
-            # Высота заголовка ~50 пикселей (отступы 20 + высота строки)
             if event.position().y() < 50:
                 self.drag_pos = event.globalPosition().toPoint()
                 self.drag_active = True

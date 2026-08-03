@@ -1,0 +1,127 @@
+{
+    "AdvancedBanking V2": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "CF": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "Alcohol_Brewery": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "BuilderItems": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "Community-Online-Tools": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "CZ Underground Bases 2.0": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "Dabs Framework": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "DayZ Editor Loader": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "FC_Fish_Equip": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "GSC Gameworld Assets 2026": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "HEXCraft — система крафта": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "Hunter Mega Pack": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "MPG_LootExtractor": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "MPG_Spawner": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "MPG_SpawnerConfigReload": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "PripyatGamma v114": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "SFP": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "SFP_anim_system": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "SNAFU Weapons": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "Trader": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "VanillaPlusPlusMap": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "VPPAdminTools": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "VPPAdminTools RU Translate": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "Wooden Room Building": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    },
+    "ZenSleep_ST": {
+        "ServerSide": false,
+        "Server": false,
+        "Client": false
+    }
+}

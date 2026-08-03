@@ -7,8 +7,8 @@ from PyQt6.QtWidgets import (
     QPushButton, QLineEdit, QListWidget, QListWidgetItem,
     QFrame, QMenu
 )
-from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QColor, QIcon, QAction
+from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QTimer, QPoint
+from PyQt6.QtGui import QColor, QAction
 from svg_icons import SVGIcon
 from notifications import get_notification_manager
 
@@ -246,6 +246,7 @@ class ModItemWidget(QWidget):
             ModItemWidget {
                 background-color: transparent;
                 border-radius: 4px;
+                border-bottom: 1px solid #2a2a2a;
             }
             ModItemWidget:hover {
                 background-color: #2a2a2a;
@@ -303,7 +304,7 @@ class ModItemWidget(QWidget):
         self.server_btn.setFixedSize(28, 28)
         self.server_btn.setIcon(self.server_icon_off)
         self.server_btn.setIconSize(QSize(18, 18))
-        self.server_btn.setToolTip("Серверный мод")
+        self.server_btn.setToolTip("ServerSide")
         self.server_btn.setCheckable(True)
         self.server_btn.setStyleSheet("""
             QPushButton {
@@ -331,7 +332,7 @@ class ModItemWidget(QWidget):
         self.cloud_btn.setFixedSize(28, 28)
         self.cloud_btn.setIcon(self.cloud_icon_off)
         self.cloud_btn.setIconSize(QSize(18, 18))
-        self.cloud_btn.setToolTip("Облачный мод")
+        self.cloud_btn.setToolTip("Server")
         self.cloud_btn.setCheckable(True)
         self.cloud_btn.setStyleSheet("""
             QPushButton {
@@ -359,7 +360,7 @@ class ModItemWidget(QWidget):
         self.gamepad_btn.setFixedSize(28, 28)
         self.gamepad_btn.setIcon(self.gamepad_icon_off)
         self.gamepad_btn.setIconSize(QSize(18, 18))
-        self.gamepad_btn.setToolTip("Клиентский мод")
+        self.gamepad_btn.setToolTip("Client")
         self.gamepad_btn.setCheckable(True)
         self.gamepad_btn.setStyleSheet("""
             QPushButton {
@@ -445,6 +446,15 @@ class ModsPage(QWidget):
         self.custom_path = ""
         self.mods = []
         self.mod_widgets = {}  # Словарь для хранения виджетов
+        self.selected_mod = None  # Выбранный мод для контекстного меню
+        
+        # Путь к конфигу статусов модов
+        self.config_dir = "config"
+        self.status_config_file = os.path.join(self.config_dir, "mods_status.json")
+        
+        # Создаём папку config, если её нет
+        if not os.path.exists(self.config_dir):
+            os.makedirs(self.config_dir)
         
         self._load_paths()
         self._setup_ui()
@@ -475,121 +485,16 @@ class ModsPage(QWidget):
         main_layout.setSpacing(20)
         main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        # ---- Кнопки управления ----
-        toolbar_layout = QHBoxLayout()
-        toolbar_layout.setSpacing(10)
-        toolbar_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        # ---- Только строка поиска ----
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(10)
+        search_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         
-        self.refresh_btn = QPushButton("Обновить")
-        self.refresh_btn.setFixedHeight(40)
-        self.refresh_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2a2a2a;
-                color: #cccccc;
-                border: 1px solid #444444;
-                border-radius: 6px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #3a3a3a;
-                border-color: #666666;
-                color: #ffffff;
-            }
-            QPushButton:pressed {
-                background-color: #1a1a1a;
-            }
-            QPushButton:disabled {
-                background-color: #1a1a1a;
-                color: #555555;
-                border-color: #333333;
-            }
-        """)
-        self.refresh_btn.clicked.connect(self.refresh_mods)
-        toolbar_layout.addWidget(self.refresh_btn)
-        
-        workshop_btn = QPushButton("Открыть Workshop")
-        workshop_btn.setFixedHeight(40)
-        workshop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2a2a2a;
-                color: #cccccc;
-                border: 1px solid #444444;
-                border-radius: 6px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #3a3a3a;
-                border-color: #666666;
-                color: #ffffff;
-            }
-            QPushButton:pressed {
-                background-color: #1a1a1a;
-            }
-        """)
-        workshop_btn.clicked.connect(self._open_workshop)
-        toolbar_layout.addWidget(workshop_btn)
-        
-        custom_btn = QPushButton("Открыть кастомные")
-        custom_btn.setFixedHeight(40)
-        custom_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2a2a2a;
-                color: #cccccc;
-                border: 1px solid #444444;
-                border-radius: 6px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #3a3a3a;
-                border-color: #666666;
-                color: #ffffff;
-            }
-            QPushButton:pressed {
-                background-color: #1a1a1a;
-            }
-        """)
-        custom_btn.clicked.connect(self._open_custom)
-        toolbar_layout.addWidget(custom_btn)
-        
-        # Кнопка сброса всех состояний
-        reset_btn = QPushButton("Сбросить всё")
-        reset_btn.setFixedHeight(40)
-        reset_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2a2a2a;
-                color: #cccccc;
-                border: 1px solid #444444;
-                border-radius: 6px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #3a3a3a;
-                border-color: #666666;
-                color: #ffffff;
-            }
-            QPushButton:pressed {
-                background-color: #1a1a1a;
-            }
-        """)
-        reset_btn.clicked.connect(self._reset_all_states)
-        toolbar_layout.addWidget(reset_btn)
-        
-        # Растягиваем чтобы поиск уехал вправо
-        toolbar_layout.addStretch()
-        
-        # Поле поиска справа
+        # Поле поиска слева
         self.search_input = QLineEdit()
         self.search_input.setFixedHeight(40)
-        self.search_input.setMinimumWidth(250)
-        self.search_input.setMaximumWidth(350)
+        self.search_input.setMinimumWidth(300)
+        self.search_input.setMaximumWidth(400)
         self.search_input.setPlaceholderText("Поиск по имени...")
         self.search_input.setStyleSheet("""
             QLineEdit {
@@ -609,11 +514,12 @@ class ModsPage(QWidget):
             }
         """)
         self.search_input.textChanged.connect(self._search_mods)
-        toolbar_layout.addWidget(self.search_input)
+        search_layout.addWidget(self.search_input)
         
-        main_layout.addLayout(toolbar_layout)
+        search_layout.addStretch()
+        main_layout.addLayout(search_layout)
         
-        # ---- Список модов с красивым скроллбаром ----
+        # ---- Список модов с подчёркиванием ----
         self.mods_list = QListWidget()
         self.mods_list.setStyleSheet("""
             QListWidget {
@@ -629,9 +535,9 @@ class ModsPage(QWidget):
             QListWidget::item {
                 padding: 0px;
                 border-radius: 4px;
-                margin: 1px 0;
-                border-bottom: 1px solid #2a2a2a;
+                margin: 0px;
                 background-color: transparent;
+                border-bottom: 1px solid #2a2a2a;
             }
             
             QListWidget::item:last {
@@ -724,7 +630,182 @@ class ModsPage(QWidget):
         """)
         self.mods_list.setUniformItemSizes(True)
         self.mods_list.setMinimumHeight(400)
+        
+        # Подключаем контекстное меню
+        self.mods_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.mods_list.customContextMenuRequested.connect(self._show_context_menu)
+        
         main_layout.addWidget(self.mods_list)
+    
+    def _show_context_menu(self, position: QPoint):
+        """Показывает контекстное меню."""
+        # Получаем элемент под курсором
+        item = self.mods_list.itemAt(position)
+        
+        # Создаём меню
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #2a2a2a;
+                color: #cccccc;
+                border: 1px solid #444444;
+                border-radius: 6px;
+                padding: 5px;
+            }
+            QMenu::item {
+                background-color: transparent;
+                padding: 8px 25px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #3a3a3a;
+                color: #ffffff;
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: #444444;
+                margin: 5px 10px;
+            }
+        """)
+        
+        if item:
+            # Если клик на мод - показываем меню для мода
+            mod_data = item.data(Qt.ItemDataRole.UserRole)
+            self.selected_mod = mod_data
+            
+            # Подзаголовок с именем мода
+            header = QAction(f"📦 {mod_data['name']}", menu)
+            header.setEnabled(False)
+            menu.addAction(header)
+            menu.addSeparator()
+            
+            # Действия для мода
+            open_folder_action = QAction("📂 Открыть папку мода", menu)
+            open_folder_action.triggered.connect(lambda: self._open_mod_folder(mod_data))
+            menu.addAction(open_folder_action)
+            
+            menu.addSeparator()
+            
+            # Сброс состояния для этого мода
+            reset_action = QAction("🔄 Сбросить статусы", menu)
+            reset_action.triggered.connect(lambda: self._reset_mod_states(mod_data))
+            menu.addAction(reset_action)
+            
+        # Глобальные действия (всегда показываются)
+        menu.addSeparator()
+        
+        # Действия для массового сброса
+        reset_server_side_action = QAction("🔹 Убрать все ServerSide", menu)
+        reset_server_side_action.triggered.connect(lambda: self._reset_all_by_type('ServerSide'))
+        menu.addAction(reset_server_side_action)
+        
+        reset_server_action = QAction("☁️ Убрать все Server", menu)
+        reset_server_action.triggered.connect(lambda: self._reset_all_by_type('Server'))
+        menu.addAction(reset_server_action)
+        
+        reset_client_action = QAction("🎮 Убрать все Client", menu)
+        reset_client_action.triggered.connect(lambda: self._reset_all_by_type('Client'))
+        menu.addAction(reset_client_action)
+        
+        menu.addSeparator()
+        
+        reset_all_action = QAction("🔄 Убрать вообще все", menu)
+        reset_all_action.triggered.connect(self._reset_all_states)
+        menu.addAction(reset_all_action)
+        
+        # Показываем меню
+        menu.exec(self.mods_list.mapToGlobal(position))
+    
+    def _open_mod_folder(self, mod_data):
+        """Открывает папку с модом."""
+        if mod_data and os.path.exists(mod_data['path']):
+            os.startfile(mod_data['path'])
+            self.notifications.show_info(
+                "Папка открыта",
+                mod_data['path'],
+                3000
+            )
+        else:
+            self.notifications.show_warning(
+                "Папка не найдена",
+                "Путь к моду не существует",
+                3000
+            )
+    
+    def _reset_mod_states(self, mod_data):
+        """Сбрасывает все статусы для одного мода."""
+        if mod_data['name'] in self.mod_widgets:
+            widget = self.mod_widgets[mod_data['name']]
+            widget.set_server_state(False)
+            widget.set_cloud_state(False)
+            widget.set_gamepad_state(False)
+            
+            # Удаляем из конфига
+            self._remove_mod_from_config(mod_data['name'])
+            
+            self.notifications.show_info(
+                "Статусы сброшены",
+                f"Для мода: {mod_data['name']}",
+                2000
+            )
+    
+    def _remove_mod_from_config(self, mod_name):
+        """Удаляет мод из конфига."""
+        try:
+            statuses = self._load_statuses_from_file()
+            if mod_name in statuses:
+                del statuses[mod_name]
+                with open(self.status_config_file, 'w', encoding='utf-8') as f:
+                    json.dump(statuses, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"Ошибка удаления мода из конфига: {e}")
+    
+    def _reset_all_by_type(self, mod_type):
+        """Сбрасывает все статусы определённого типа."""
+        from dialog import CustomDialog
+        
+        type_names = {
+            'ServerSide': 'ServerSide',
+            'Server': 'Server',
+            'Client': 'Client'
+        }
+        
+        confirmed = CustomDialog.question(
+            self,
+            f"Сброс всех {type_names[mod_type]}",
+            f"Вы действительно хотите убрать все {type_names[mod_type]} статусы у всех модов?",
+            default=False
+        )
+        
+        if not confirmed:
+            return
+        
+        # Сбрасываем кнопки
+        for widget in self.mod_widgets.values():
+            if mod_type == 'ServerSide':
+                widget.set_server_state(False)
+            elif mod_type == 'Server':
+                widget.set_cloud_state(False)
+            elif mod_type == 'Client':
+                widget.set_gamepad_state(False)
+        
+        # Обновляем конфиг
+        try:
+            statuses = self._load_statuses_from_file()
+            for mod_name in statuses:
+                if mod_type in statuses[mod_name]:
+                    statuses[mod_name][mod_type] = False
+            
+            with open(self.status_config_file, 'w', encoding='utf-8') as f:
+                json.dump(statuses, f, ensure_ascii=False, indent=4)
+                
+            self.notifications.show_success(
+                f"Все {type_names[mod_type]} сброшены",
+                "Статусы обновлены",
+                3000
+            )
+        except Exception as e:
+            self.notifications.show_error("Ошибка сброса", str(e), 5000)
     
     def refresh_mods(self):
         self._load_paths()
@@ -752,8 +833,8 @@ class ModsPage(QWidget):
             self.mods_list.addItem(item)
             return
         
-        self.refresh_btn.setEnabled(False)
-        self.refresh_btn.setText("Загрузка...")
+        self.mods_list.clear()
+        self.search_input.clear()
         
         self.scanner = ModScanner(self.workshop_path, self.custom_path)
         self.scanner.finished.connect(self._on_mods_loaded)
@@ -763,8 +844,9 @@ class ModsPage(QWidget):
     def _on_mods_loaded(self, mods):
         self.mods = mods
         self._display_mods(mods)
-        self.refresh_btn.setEnabled(True)
-        self.refresh_btn.setText("Обновить")
+        
+        # Загружаем сохранённые статусы
+        self._load_mods_status()
         
         if mods:
             self.notifications.show_success(
@@ -785,8 +867,6 @@ class ModsPage(QWidget):
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         item.setForeground(QColor(180, 80, 80))
         self.mods_list.addItem(item)
-        self.refresh_btn.setEnabled(True)
-        self.refresh_btn.setText("Обновить")
         self.notifications.show_error("Ошибка сканирования", error, 5000)
     
     def _display_mods(self, mods):
@@ -804,7 +884,7 @@ class ModsPage(QWidget):
             # Создаём кастомный виджет для мода
             item_widget = ModItemWidget(mod)
             
-            # Подключаем сигналы кнопок
+            # Подключаем сигналы кнопок с сохранением
             item_widget.server_toggled.connect(self._on_server_toggled)
             item_widget.cloud_toggled.connect(self._on_cloud_toggled)
             item_widget.gamepad_toggled.connect(self._on_gamepad_toggled)
@@ -821,46 +901,107 @@ class ModsPage(QWidget):
     
     def _on_server_toggled(self, mod_data, enabled):
         """Обработчик переключения кнопки сервера."""
-        status = "включён" if enabled else "выключен"
-        self.notifications.show_info(
-            f"Серверный мод {status}",
-            f"{mod_data['name']} - {status}",
-            2000
-        )
-        print(f"[Сервер] {mod_data['name']} -> {status}")
+        self._save_mod_status(mod_data['name'], 'ServerSide', enabled)
     
     def _on_cloud_toggled(self, mod_data, enabled):
         """Обработчик переключения кнопки облака."""
-        status = "включён" if enabled else "выключен"
-        self.notifications.show_info(
-            f"Облачный мод {status}",
-            f"{mod_data['name']} - {status}",
-            2000
-        )
-        print(f"[Облако] {mod_data['name']} -> {status}")
+        self._save_mod_status(mod_data['name'], 'Server', enabled)
     
     def _on_gamepad_toggled(self, mod_data, enabled):
         """Обработчик переключения кнопки геймпада."""
-        status = "включён" if enabled else "выключен"
-        self.notifications.show_info(
-            f"Клиентский мод {status}",
-            f"{mod_data['name']} - {status}",
-            2000
-        )
-        print(f"[Клиент] {mod_data['name']} -> {status}")
+        self._save_mod_status(mod_data['name'], 'Client', enabled)
+    
+    def _save_mod_status(self, mod_name, mod_type, enabled):
+        """Сохраняет статус мода в конфиг."""
+        try:
+            statuses = self._load_statuses_from_file()
+            
+            if mod_name not in statuses:
+                statuses[mod_name] = {}
+            
+            statuses[mod_name][mod_type] = enabled
+            
+            with open(self.status_config_file, 'w', encoding='utf-8') as f:
+                json.dump(statuses, f, ensure_ascii=False, indent=4)
+                
+        except Exception as e:
+            print(f"Ошибка сохранения статуса мода: {e}")
+    
+    def _load_mods_status(self):
+        """Загружает и применяет сохранённые статусы для всех модов."""
+        try:
+            statuses = self._load_statuses_from_file()
+            
+            if not statuses:
+                return
+            
+            for mod_name, widget in self.mod_widgets.items():
+                if mod_name in statuses:
+                    mod_status = statuses[mod_name]
+                    
+                    if 'ServerSide' in mod_status:
+                        widget.set_server_state(mod_status['ServerSide'])
+                    if 'Server' in mod_status:
+                        widget.set_cloud_state(mod_status['Server'])
+                    if 'Client' in mod_status:
+                        widget.set_gamepad_state(mod_status['Client'])
+                        
+        except Exception as e:
+            print(f"Ошибка загрузки статусов модов: {e}")
+    
+    def _load_statuses_from_file(self):
+        """Загружает статусы из файла."""
+        if not os.path.exists(self.status_config_file):
+            return {}
+        
+        try:
+            with open(self.status_config_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Ошибка чтения файла статусов: {e}")
+            return {}
     
     def _reset_all_states(self):
-        """Сбрасывает все состояния кнопок."""
+        """Сбрасывает все состояния кнопок и удаляет конфиг."""
+        from dialog import CustomDialog
+        
+        confirmed = CustomDialog.question(
+            self,
+            "Сброс всех статусов",
+            "Вы действительно хотите убрать все статусы у всех модов?",
+            default=False
+        )
+        
+        if not confirmed:
+            return
+        
+        # Сбрасываем все кнопки
         for widget in self.mod_widgets.values():
             widget.set_server_state(False)
             widget.set_cloud_state(False)
             widget.set_gamepad_state(False)
         
-        self.notifications.show_info(
-            "Все состояния сброшены",
-            "Все кнопки выключены",
-            2000
-        )
+        # Удаляем файл конфига
+        if os.path.exists(self.status_config_file):
+            try:
+                os.remove(self.status_config_file)
+                self.notifications.show_success(
+                    "Все статусы сброшены",
+                    "Файл конфигурации удалён",
+                    3000
+                )
+            except Exception as e:
+                self.notifications.show_error(
+                    "Ошибка сброса",
+                    str(e),
+                    5000
+                )
+        else:
+            self.notifications.show_info(
+                "Все статусы сброшены",
+                "Все кнопки выключены",
+                2000
+            )
     
     def _search_mods(self):
         search_text = self.search_input.text().strip().lower()
