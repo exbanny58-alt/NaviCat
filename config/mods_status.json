@@ -2,7 +2,7 @@
     "AdvancedBanking V2": {
         "ServerSide": false,
         "Server": false,
-        "Client": false
+        "Client": true
     },
     "CF": {
         "ServerSide": false,

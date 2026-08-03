@@ -437,6 +437,9 @@ class ModItemWidget(QWidget):
 class ModsPage(QWidget):
     """Страница управления модами."""
     
+    # Сигнал, который будет отправляться при изменении статуса Client
+    client_status_changed = pyqtSignal()
+    
     def __init__(self):
         super().__init__()
         self.setStyleSheet("background-color: #1a1a1a;")
@@ -736,12 +739,23 @@ class ModsPage(QWidget):
         """Сбрасывает все статусы для одного мода."""
         if mod_data['name'] in self.mod_widgets:
             widget = self.mod_widgets[mod_data['name']]
+            
+            # Проверяем был ли включён Client
+            was_client_enabled = widget.gamepad_enabled
+            
             widget.set_server_state(False)
             widget.set_cloud_state(False)
             widget.set_gamepad_state(False)
             
+            # Если Client был включён - удаляем из клиентского конфига
+            if was_client_enabled:
+                self._remove_from_client_connections(mod_data['name'])
+            
             # Удаляем из конфига
             self._remove_mod_from_config(mod_data['name'])
+            
+            # Отправляем сигнал об обновлении
+            self.client_status_changed.emit()
             
             self.notifications.show_info(
                 "Статусы сброшены",
@@ -759,6 +773,24 @@ class ModsPage(QWidget):
                     json.dump(statuses, f, ensure_ascii=False, indent=4)
         except Exception as e:
             print(f"Ошибка удаления мода из конфига: {e}")
+    
+    def _remove_from_client_connections(self, mod_name):
+        """Удаляет мод из файла client_connections.json."""
+        try:
+            client_connections_file = os.path.join(self.config_dir, "client_connections.json")
+            
+            if os.path.exists(client_connections_file):
+                with open(client_connections_file, 'r', encoding='utf-8') as f:
+                    connections = json.load(f)
+                
+                # Удаляем мод если он есть
+                if mod_name in connections:
+                    del connections[mod_name]
+                    with open(client_connections_file, 'w', encoding='utf-8') as f:
+                        json.dump(connections, f, ensure_ascii=False, indent=4)
+                    print(f"Мод '{mod_name}' удалён из client_connections.json")
+        except Exception as e:
+            print(f"Ошибка удаления мода из client_connections.json: {e}")
     
     def _reset_all_by_type(self, mod_type):
         """Сбрасывает все статусы определённого типа."""
@@ -787,6 +819,10 @@ class ModsPage(QWidget):
             elif mod_type == 'Server':
                 widget.set_cloud_state(False)
             elif mod_type == 'Client':
+                # Если сбрасываем Client - удаляем из клиентского конфига
+                if widget.gamepad_enabled:
+                    mod_name = widget.mod_data['name']
+                    self._remove_from_client_connections(mod_name)
                 widget.set_gamepad_state(False)
         
         # Обновляем конфиг
@@ -798,6 +834,9 @@ class ModsPage(QWidget):
             
             with open(self.status_config_file, 'w', encoding='utf-8') as f:
                 json.dump(statuses, f, ensure_ascii=False, indent=4)
+            
+            # Отправляем сигнал об обновлении
+            self.client_status_changed.emit()
                 
             self.notifications.show_success(
                 f"Все {type_names[mod_type]} сброшены",
@@ -908,8 +947,15 @@ class ModsPage(QWidget):
         self._save_mod_status(mod_data['name'], 'Server', enabled)
     
     def _on_gamepad_toggled(self, mod_data, enabled):
-        """Обработчик переключения кнопки геймпада."""
+        """Обработчик переключения кнопки геймпада (Client)."""
         self._save_mod_status(mod_data['name'], 'Client', enabled)
+        
+        # Если Client отключён - удаляем мод из клиентского конфига
+        if not enabled:
+            self._remove_from_client_connections(mod_data['name'])
+        
+        # Отправляем сигнал, что статус Client изменился
+        self.client_status_changed.emit()
     
     def _save_mod_status(self, mod_name, mod_type, enabled):
         """Сохраняет статус мода в конфиг."""
@@ -975,8 +1021,11 @@ class ModsPage(QWidget):
         if not confirmed:
             return
         
-        # Сбрасываем все кнопки
+        # Сбрасываем все кнопки и удаляем из клиентского конфига
         for widget in self.mod_widgets.values():
+            # Если Client был включён - удаляем из клиентского конфига
+            if widget.gamepad_enabled:
+                self._remove_from_client_connections(widget.mod_data['name'])
             widget.set_server_state(False)
             widget.set_cloud_state(False)
             widget.set_gamepad_state(False)
@@ -985,9 +1034,18 @@ class ModsPage(QWidget):
         if os.path.exists(self.status_config_file):
             try:
                 os.remove(self.status_config_file)
+                
+                # Также удаляем клиентский конфиг
+                client_connections_file = os.path.join(self.config_dir, "client_connections.json")
+                if os.path.exists(client_connections_file):
+                    os.remove(client_connections_file)
+                
+                # Отправляем сигнал об обновлении
+                self.client_status_changed.emit()
+                
                 self.notifications.show_success(
                     "Все статусы сброшены",
-                    "Файл конфигурации удалён",
+                    "Файлы конфигурации удалены",
                     3000
                 )
             except Exception as e:

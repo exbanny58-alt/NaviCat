@@ -10,7 +10,7 @@ from PyQt6.QtCore import Qt, QSize, QTimer, QRect
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPen, QCursor
 from svg_icons import SVGIcon
 from title_bar import CustomTitleBar
-from pages import SettingsPage, MusicPage, MainPage, ModsPage
+from pages import SettingsPage, MusicPage, MainPage, ModsPage, ClientPage
 
 
 class ResizeHandle(QWidget):
@@ -197,6 +197,10 @@ class MatteBlackWindow(QWidget):
         self.main_page_index = 0
 
         self.menu_page_indices = {}
+        
+        # Инициализируем ссылки на страницы
+        self.mods_page = None
+        self.client_page = None
 
         # Страницы для пунктов меню
         menu_page_names = ["Сервер", "Клиент", "Моды", "Редакторы"]
@@ -204,10 +208,17 @@ class MatteBlackWindow(QWidget):
             if name == "Моды":
                 mods_page = ModsPage()
                 self.content_stack.addWidget(mods_page)
+                self.menu_page_indices[i] = self.content_stack.count() - 1
+                self.mods_page = mods_page
+            elif name == "Клиент":
+                client_page = ClientPage()
+                self.content_stack.addWidget(client_page)
+                self.menu_page_indices[i] = self.content_stack.count() - 1
+                self.client_page = client_page
             else:
                 page = self._create_default_page(name)
                 self.content_stack.addWidget(page)
-            self.menu_page_indices[i] = self.content_stack.count() - 1
+                self.menu_page_indices[i] = self.content_stack.count() - 1
 
         # Страница настроек
         settings_page = SettingsPage()
@@ -240,14 +251,19 @@ class MatteBlackWindow(QWidget):
         
         self.setLayout(main_layout)
 
+        # Подключаем сигнал обновления Client-страницы при изменении Client-статуса
+        # Только если страницы существуют
+        if hasattr(self, 'mods_page') and self.mods_page is not None and \
+           hasattr(self, 'client_page') and self.client_page is not None:
+            self.mods_page.client_status_changed.connect(self.client_page.load_client_mods)
+
         # Начальное состояние
         self.apply_menu_state()
         self.open_main_page()
         self.update_resize_handles()
-            
+    
     def _on_preload_finished(self):
         """Обработчик завершения предзагрузки всех страниц."""
-        # Можно добавить уведомление, если нужно
         pass
 
     def update_resize_handles(self):
