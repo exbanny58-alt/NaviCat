@@ -10,8 +10,7 @@ from PyQt6.QtCore import Qt, QSize, QTimer, QRect
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPen, QCursor
 from svg_icons import SVGIcon
 from title_bar import CustomTitleBar
-from pages import SettingsPage, MusicPage, MainPage, ModsPage, ClientPage
-
+from pages import SettingsPage, MusicPage, MainPage, ModsPage, ClientPage, ServerPage
 
 class ResizeHandle(QWidget):
     """Виджет для растягивания окна за края."""
@@ -205,7 +204,12 @@ class MatteBlackWindow(QWidget):
         # Страницы для пунктов меню
         menu_page_names = ["Сервер", "Клиент", "Моды", "Редакторы"]
         for i, name in enumerate(menu_page_names):
-            if name == "Моды":
+            if name == "Сервер":
+                server_page = ServerPage()
+                self.content_stack.addWidget(server_page)
+                self.menu_page_indices[i] = self.content_stack.count() - 1
+                self.server_page = server_page
+            elif name == "Моды":
                 mods_page = ModsPage()
                 self.content_stack.addWidget(mods_page)
                 self.menu_page_indices[i] = self.content_stack.count() - 1
@@ -220,6 +224,15 @@ class MatteBlackWindow(QWidget):
                 self.content_stack.addWidget(page)
                 self.menu_page_indices[i] = self.content_stack.count() - 1
 
+        # Инициализируем server_page
+        self.server_page = None
+
+        # Подключаем сигналы для автообновления
+        if self.mods_page and self.client_page:
+            self.mods_page.client_status_changed.connect(self.client_page.load_client_mods)
+
+        if self.mods_page and self.server_page:
+            self.mods_page.server_status_changed.connect(self.server_page.load_server_mods)
         # Страница настроек
         settings_page = SettingsPage()
         self.content_stack.addWidget(settings_page)

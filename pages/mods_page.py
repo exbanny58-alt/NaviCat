@@ -434,12 +434,46 @@ class ModItemWidget(QWidget):
         }
 
 
+# mods_page.py - добавить в класс ModsPage
+
 class ModsPage(QWidget):
     """Страница управления модами."""
     
-    # Сигнал, который будет отправляться при изменении статуса Client
+    # Сигналы для обновления страниц
     client_status_changed = pyqtSignal()
+    server_status_changed = pyqtSignal()  # <-- Добавить
     
+    def _on_server_toggled(self, mod_data, enabled):
+        """Обработчик переключения кнопки сервера (ServerSide)."""
+        self._save_mod_status(mod_data['name'], 'ServerSide', enabled)
+    
+    def _on_cloud_toggled(self, mod_data, enabled):
+        """Обработчик переключения кнопки облака (Server)."""
+        self._save_mod_status(mod_data['name'], 'Server', enabled)
+        
+        # Если Server отключён - удаляем мод из серверного конфига
+        if not enabled:
+            self._remove_from_server_connections(mod_data['name'])
+        
+        # Отправляем сигнал, что статус Server изменился
+        self.server_status_changed.emit()
+    
+    def _remove_from_server_connections(self, mod_name):
+        """Удаляет мод из файла server_connections.json."""
+        try:
+            server_connections_file = os.path.join(self.config_dir, "server_connections.json")
+            
+            if os.path.exists(server_connections_file):
+                with open(server_connections_file, 'r', encoding='utf-8') as f:
+                    connections = json.load(f)
+                
+                if mod_name in connections:
+                    del connections[mod_name]
+                    with open(server_connections_file, 'w', encoding='utf-8') as f:
+                        json.dump(connections, f, ensure_ascii=False, indent=4)
+                    print(f"Мод '{mod_name}' удалён из server_connections.json")
+        except Exception as e:
+            print(f"Ошибка удаления мода из server_connections.json: {e}")    
     def __init__(self):
         super().__init__()
         self.setStyleSheet("background-color: #1a1a1a;")

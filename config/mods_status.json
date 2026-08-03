@@ -11,8 +11,8 @@
     },
     "Alcohol_Brewery": {
         "ServerSide": false,
-        "Server": false,
-        "Client": false
+        "Server": true,
+        "Client": true
     },
     "BuilderItems": {
         "ServerSide": false,
