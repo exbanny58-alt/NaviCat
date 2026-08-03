@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QTimer, QPoint
 from PyQt6.QtGui import QColor, QAction
 from svg_icons import SVGIcon
 from notifications import get_notification_manager
+from dialog import CustomDialog
 
 
 class ModScanner(QThread):
@@ -434,46 +435,13 @@ class ModItemWidget(QWidget):
         }
 
 
-# mods_page.py - добавить в класс ModsPage
-
 class ModsPage(QWidget):
     """Страница управления модами."""
     
     # Сигналы для обновления страниц
     client_status_changed = pyqtSignal()
-    server_status_changed = pyqtSignal()  # <-- Добавить
+    server_status_changed = pyqtSignal()
     
-    def _on_server_toggled(self, mod_data, enabled):
-        """Обработчик переключения кнопки сервера (ServerSide)."""
-        self._save_mod_status(mod_data['name'], 'ServerSide', enabled)
-    
-    def _on_cloud_toggled(self, mod_data, enabled):
-        """Обработчик переключения кнопки облака (Server)."""
-        self._save_mod_status(mod_data['name'], 'Server', enabled)
-        
-        # Если Server отключён - удаляем мод из серверного конфига
-        if not enabled:
-            self._remove_from_server_connections(mod_data['name'])
-        
-        # Отправляем сигнал, что статус Server изменился
-        self.server_status_changed.emit()
-    
-    def _remove_from_server_connections(self, mod_name):
-        """Удаляет мод из файла server_connections.json."""
-        try:
-            server_connections_file = os.path.join(self.config_dir, "server_connections.json")
-            
-            if os.path.exists(server_connections_file):
-                with open(server_connections_file, 'r', encoding='utf-8') as f:
-                    connections = json.load(f)
-                
-                if mod_name in connections:
-                    del connections[mod_name]
-                    with open(server_connections_file, 'w', encoding='utf-8') as f:
-                        json.dump(connections, f, ensure_ascii=False, indent=4)
-                    print(f"Мод '{mod_name}' удалён из server_connections.json")
-        except Exception as e:
-            print(f"Ошибка удаления мода из server_connections.json: {e}")    
     def __init__(self):
         super().__init__()
         self.setStyleSheet("background-color: #1a1a1a;")
@@ -522,7 +490,7 @@ class ModsPage(QWidget):
         main_layout.setSpacing(20)
         main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        # ---- Только строка поиска ----
+        # ---- Строка поиска с кнопками ----
         search_layout = QHBoxLayout()
         search_layout.setSpacing(10)
         search_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -552,6 +520,30 @@ class ModsPage(QWidget):
         """)
         self.search_input.textChanged.connect(self._search_mods)
         search_layout.addWidget(self.search_input)
+        
+        # Кнопка "Очистить CFG"
+        self.clear_cfg_btn = QPushButton("🗑️ Очистить CFG")
+        self.clear_cfg_btn.setFixedSize(160, 40)
+        self.clear_cfg_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #5a2a2a;
+                color: #ff8888;
+                border: 1px solid #aa4444;
+                border-radius: 6px;
+                padding: 6px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #6a3a3a;
+                border-color: #cc6666;
+            }
+            QPushButton:pressed {
+                background-color: #4a1a1a;
+            }
+        """)
+        self.clear_cfg_btn.clicked.connect(self._clear_mods_cfg)
+        search_layout.addWidget(self.clear_cfg_btn)
         
         search_layout.addStretch()
         main_layout.addLayout(search_layout)
@@ -674,6 +666,56 @@ class ModsPage(QWidget):
         
         main_layout.addWidget(self.mods_list)
     
+    def _clear_mods_cfg(self):
+        """Очищает конфиг статусов модов."""
+        confirmed = CustomDialog.question(
+            self,
+            "Очистка CFG модов",
+            "Вы действительно хотите очистить все статусы модов?\n\n"
+            "Будут удалены все отметки Server, ServerSide и Client.\n"
+            "Это действие нельзя отменить.",
+            default=False
+        )
+        
+        if not confirmed:
+            return
+        
+        try:
+            # Удаляем файл статусов
+            if os.path.exists(self.status_config_file):
+                os.remove(self.status_config_file)
+                
+                # Сбрасываем состояние всех виджетов
+                for widget in self.mod_widgets.values():
+                    widget.set_server_state(False)
+                    widget.set_cloud_state(False)
+                    widget.set_gamepad_state(False)
+                
+                # Отправляем сигналы об обновлении
+                self.client_status_changed.emit()
+                self.server_status_changed.emit()
+                
+                # ПЕРЕЗАГРУЖАЕМ СПИСОК
+                self.refresh_mods()
+                
+                self.notifications.show_success(
+                    "CFG модов очищен",
+                    "Все статусы удалены",
+                    3000
+                )
+            else:
+                self.notifications.show_info(
+                    "CFG уже пуст",
+                    "Файл конфигурации не существует",
+                    3000
+                )
+        except Exception as e:
+            self.notifications.show_error(
+                "Ошибка очистки",
+                str(e),
+                5000
+            )
+
     def _show_context_menu(self, position: QPoint):
         """Показывает контекстное меню."""
         # Получаем элемент под курсором
@@ -973,12 +1015,36 @@ class ModsPage(QWidget):
             self.mods_list.setItemWidget(item, item_widget)
     
     def _on_server_toggled(self, mod_data, enabled):
-        """Обработчик переключения кнопки сервера."""
+        """Обработчик переключения кнопки сервера (ServerSide)."""
         self._save_mod_status(mod_data['name'], 'ServerSide', enabled)
     
     def _on_cloud_toggled(self, mod_data, enabled):
-        """Обработчик переключения кнопки облака."""
+        """Обработчик переключения кнопки облака (Server)."""
         self._save_mod_status(mod_data['name'], 'Server', enabled)
+        
+        # Если Server отключён - удаляем мод из серверного конфига
+        if not enabled:
+            self._remove_from_server_connections(mod_data['name'])
+        
+        # Отправляем сигнал, что статус Server изменился
+        self.server_status_changed.emit()
+    
+    def _remove_from_server_connections(self, mod_name):
+        """Удаляет мод из файла server_connections.json."""
+        try:
+            server_connections_file = os.path.join(self.config_dir, "server_connections.json")
+            
+            if os.path.exists(server_connections_file):
+                with open(server_connections_file, 'r', encoding='utf-8') as f:
+                    connections = json.load(f)
+                
+                if mod_name in connections:
+                    del connections[mod_name]
+                    with open(server_connections_file, 'w', encoding='utf-8') as f:
+                        json.dump(connections, f, ensure_ascii=False, indent=4)
+                    print(f"Мод '{mod_name}' удалён из server_connections.json")
+        except Exception as e:
+            print(f"Ошибка удаления мода из server_connections.json: {e}")
     
     def _on_gamepad_toggled(self, mod_data, enabled):
         """Обработчик переключения кнопки геймпада (Client)."""
@@ -1094,6 +1160,16 @@ class ModsPage(QWidget):
                 "Все кнопки выключены",
                 2000
             )
+    
+    def reload_statuses(self):
+        """Перезагружает статусы модов без полного сканирования."""
+        # Загружаем сохранённые статусы и применяем их
+        self._load_mods_status()
+        
+        # Обновляем отображение
+        self.mods_list.repaint()
+        
+        print("Статусы модов перезагружены")
     
     def _search_mods(self):
         search_text = self.search_input.text().strip().lower()

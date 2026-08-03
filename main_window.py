@@ -12,6 +12,7 @@ from svg_icons import SVGIcon
 from title_bar import CustomTitleBar
 from pages import SettingsPage, MusicPage, MainPage, ModsPage, ClientPage, ServerPage
 
+
 class ResizeHandle(QWidget):
     """Виджет для растягивания окна за края."""
     
@@ -200,6 +201,7 @@ class MatteBlackWindow(QWidget):
         # Инициализируем ссылки на страницы
         self.mods_page = None
         self.client_page = None
+        self.server_page = None
 
         # Страницы для пунктов меню
         menu_page_names = ["Сервер", "Клиент", "Моды", "Редакторы"]
@@ -224,15 +226,6 @@ class MatteBlackWindow(QWidget):
                 self.content_stack.addWidget(page)
                 self.menu_page_indices[i] = self.content_stack.count() - 1
 
-        # Инициализируем server_page
-        self.server_page = None
-
-        # Подключаем сигналы для автообновления
-        if self.mods_page and self.client_page:
-            self.mods_page.client_status_changed.connect(self.client_page.load_client_mods)
-
-        if self.mods_page and self.server_page:
-            self.mods_page.server_status_changed.connect(self.server_page.load_server_mods)
         # Страница настроек
         settings_page = SettingsPage()
         self.content_stack.addWidget(settings_page)
@@ -264,11 +257,21 @@ class MatteBlackWindow(QWidget):
         
         self.setLayout(main_layout)
 
+        # ---- ПОДКЛЮЧЕНИЕ СИГНАЛОВ (ПЕРЕНЕСЕНО В ПРАВИЛЬНОЕ МЕСТО) ----
         # Подключаем сигнал обновления Client-страницы при изменении Client-статуса
-        # Только если страницы существуют
         if hasattr(self, 'mods_page') and self.mods_page is not None and \
            hasattr(self, 'client_page') and self.client_page is not None:
             self.mods_page.client_status_changed.connect(self.client_page.load_client_mods)
+
+        # Подключаем сигнал обновления Server-страницы при изменении Server-статуса
+        if hasattr(self, 'mods_page') and self.mods_page is not None and \
+           hasattr(self, 'server_page') and self.server_page is not None:
+            self.mods_page.server_status_changed.connect(self.server_page.load_server_mods)
+
+        # Подключаем сигнал обновления страницы модов при изменении статусов из клиента
+        if hasattr(self, 'client_page') and self.client_page is not None and \
+           hasattr(self, 'mods_page') and self.mods_page is not None:
+            self.client_page.mods_status_changed.connect(self.mods_page.reload_statuses)
 
         # Начальное состояние
         self.apply_menu_state()

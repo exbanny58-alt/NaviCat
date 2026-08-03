@@ -1,3 +1,5 @@
+# notifications.py
+
 from PyQt6 import sip
 from PyQt6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QHBoxLayout, 
@@ -11,7 +13,10 @@ from svg_icons import SVGIcon
 class NotificationPopup(QWidget):
     """Всплывающее уведомление в правом нижнем углу."""
     
-    def __init__(self, title, message, duration=4000, icon_type="information"):
+    # Счётчик для отслеживания позиции
+    _instance_counter = 0
+    
+    def __init__(self, title, message, duration=4000, icon_type="information", offset=0):
         super().__init__()
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint | 
@@ -24,6 +29,7 @@ class NotificationPopup(QWidget):
         self.duration = duration
         self.icon_type = icon_type
         self._is_deleted = False
+        self.offset = offset  # Смещение от нижнего края
         
         self._setup_ui(title, message)
         self._setup_timer()
@@ -136,13 +142,19 @@ class NotificationPopup(QWidget):
             self.close()
     
     def _position_window(self):
+        """Позиционирует окно с учётом смещения."""
         screen = QApplication.primaryScreen().geometry()
         self.setGeometry(
             screen.width() - self.width() - 20,
-            screen.height() - self.height() - 50,
+            screen.height() - self.height() - 50 - self.offset,
             self.width(),
             self.height()
         )
+    
+    def set_offset(self, offset):
+        """Обновляет смещение уведомления."""
+        self.offset = offset
+        self._position_window()
     
     def showEvent(self, event):
         super().showEvent(event)
@@ -187,6 +199,8 @@ class NotificationManager:
         self._initialized = True
         self.notifications = []
         self.max_notifications = 5
+        self.notification_height = 80  # Приблизительная высота уведомления
+        self.spacing = 10  # Расстояние между уведомлениями
     
     def _cleanup_notifications(self):
         """Удаляет закрытые уведомления с защитой от удалённых объектов."""
@@ -201,30 +215,36 @@ class NotificationManager:
                 pass
         self.notifications = cleaned
     
-    def _position_notifications(self):
-        screen = QApplication.primaryScreen().geometry()
-        x = screen.width() - 20
-        y = screen.height() - 50
+    def _update_positions(self):
+        """Обновляет позиции всех уведомлений."""
+        self._cleanup_notifications()
+        
+        # Сортируем уведомления по времени добавления (новые сверху)
         visible = []
-        for notif in reversed(self.notifications):
+        for notif in self.notifications:
             try:
                 if not sip.isdeleted(notif) and notif.isVisible():
                     visible.append(notif)
             except (RuntimeError, AttributeError):
                 continue
+        
+        # Обновляем позиции для каждого уведомления
+        # Новые уведомления будут сверху (меньший offset)
         for i, notif in enumerate(visible):
             try:
                 if not sip.isdeleted(notif):
-                    notif.move(
-                        x - notif.width(),
-                        y - notif.height() - (i * (notif.height() + 10))
-                    )
+                    # Вычисляем смещение: каждое следующее уведомление ниже
+                    # Используем реальную высоту уведомления + отступ
+                    height = notif.height() if notif.height() > 0 else self.notification_height
+                    offset = i * (height + self.spacing)
+                    notif.set_offset(offset)
             except (RuntimeError, AttributeError):
                 continue
     
     def show_notification(self, title, message, duration=4000, icon_type="information"):
         self._cleanup_notifications()
         
+        # Если достигнут лимит - удаляем самое старое
         if len(self.notifications) >= self.max_notifications:
             oldest = self.notifications[0]
             try:
@@ -234,17 +254,24 @@ class NotificationManager:
                 pass
             self.notifications.pop(0)
         
-        notif = NotificationPopup(title, message, duration, icon_type)
+        # Создаём новое уведомление
+        notif = NotificationPopup(title, message, duration, icon_type, offset=0)
         notif.show()
-        self.notifications.append(notif)
-        self._position_notifications()
+        
+        # Добавляем в начало списка (новые сверху)
+        self.notifications.insert(0, notif)
+        
+        # Обновляем позиции всех уведомлений
+        self._update_positions()
+        
+        # Подключаем сигнал закрытия
         notif.destroyed.connect(self._on_notification_closed)
     
     def _on_notification_closed(self):
         """Обработчик закрытия уведомления с защитой от удалённых объектов."""
         try:
             self._cleanup_notifications()
-            self._position_notifications()
+            self._update_positions()
         except (RuntimeError, AttributeError):
             # Если объекты уже удалены, игнорируем
             pass

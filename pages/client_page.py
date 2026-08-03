@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QListWidget, QListWidgetItem,
     QFrame
 )
-from PyQt6.QtCore import Qt, QSize, QTimer
+from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtGui import QPainter
@@ -182,6 +182,9 @@ class ClientItemWidget(QWidget):
 class ClientPage(QWidget):
     """Страница клиента - отображает моды с Client-статусом."""
     
+    # Сигнал для обновления страницы модов
+    mods_status_changed = pyqtSignal()
+    
     def __init__(self):
         super().__init__()
         self.setStyleSheet("background-color: #1a1a1a;")
@@ -294,6 +297,9 @@ class ClientPage(QWidget):
             if added_count > 0:
                 with open(self.mods_status_file, 'w', encoding='utf-8') as f:
                     json.dump(mods_status, f, ensure_ascii=False, indent=4)
+                
+                # Отправляем сигнал об обновлении статусов
+                self.mods_status_changed.emit()
                 print(f"Отмечено {added_count} модов как Client")
             
             return added_count
@@ -336,11 +342,6 @@ class ClientPage(QWidget):
         title_label.setStyleSheet("color: #cccccc; font-size: 24px; font-weight: bold;")
         header_layout.addWidget(title_label)
         
-        # Счётчик модов
-        self.count_label = QLabel("0 модов")
-        self.count_label.setStyleSheet("color: #888888; font-size: 14px;")
-        header_layout.addWidget(self.count_label)
-        
         header_layout.addStretch()
         
         # Кнопка "Подключить все/Отключить все"
@@ -366,6 +367,30 @@ class ClientPage(QWidget):
         """)
         self.toggle_all_btn.clicked.connect(self._toggle_all_connections)
         header_layout.addWidget(self.toggle_all_btn)
+        
+        # Кнопка "Очистить CFG"
+        self.clear_cfg_btn = QPushButton("🗑️ Очистить CFG")
+        self.clear_cfg_btn.setFixedSize(160, 36)
+        self.clear_cfg_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #5a2a2a;
+                color: #ff8888;
+                border: 1px solid #aa4444;
+                border-radius: 4px;
+                padding: 6px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #6a3a3a;
+                border-color: #cc6666;
+            }
+            QPushButton:pressed {
+                background-color: #4a1a1a;
+            }
+        """)
+        self.clear_cfg_btn.clicked.connect(self._clear_client_cfg)
+        header_layout.addWidget(self.clear_cfg_btn)
         
         # Кнопка "Подключить моды сервера"
         self.connect_server_btn = QPushButton()
@@ -541,8 +566,98 @@ class ClientPage(QWidget):
         
         main_layout.addWidget(self.mods_list, 1)
     
+    def _toggle_all_connections(self):
+        """Переключает состояние всех модов (подключить все/отключить все)."""
+        if not self.mod_widgets:
+            self.notifications.show_warning(
+                "Нет модов",
+                "Список модов пуст",
+                2000
+            )
+            return
+        
+        # Проверяем, все ли моды уже подключены
+        all_connected = True
+        for widget in self.mod_widgets.values():
+            if not widget.get_connection_state():
+                all_connected = False
+                break
+        
+        # Если все подключены - отключаем все, иначе - подключаем все
+        new_state = not all_connected
+        
+        # Меняем состояние всех модов
+        for widget in self.mod_widgets.values():
+            widget.set_connected_state(new_state)
+        
+        # Сохраняем состояния
+        self._save_connections()
+        
+        # Обновляем текст кнопки
+        if new_state:
+            self.toggle_all_btn.setText("Отключить все")
+            self.notifications.show_success(
+                "Все моды подключены",
+                f"Подключено {len(self.mod_widgets)} модов",
+                3000
+            )
+        else:
+            self.toggle_all_btn.setText("Подключить все")
+            self.notifications.show_info(
+                "Все моды отключены",
+                f"Отключено {len(self.mod_widgets)} модов",
+                3000
+            )
+    
+    def _clear_client_cfg(self):
+        """Очищает конфиг клиентских подключений."""
+        confirmed = CustomDialog.question(
+            self,
+            "Очистка CFG клиента",
+            "Вы действительно хотите очистить все клиентские подключения?\n\n"
+            "Это действие нельзя отменить.",
+            default=False
+        )
+        
+        if not confirmed:
+            return
+        
+        try:
+            # Удаляем файл конфига
+            if os.path.exists(self.client_connections_file):
+                os.remove(self.client_connections_file)
+                self.connections = {}
+                
+                # Сбрасываем состояние всех виджетов
+                for widget in self.mod_widgets.values():
+                    widget.set_connected_state(False)
+                
+                # Обновляем кнопку "Подключить все"
+                self._update_toggle_all_button()
+                
+                # ПЕРЕЗАГРУЖАЕМ СПИСОК
+                self.load_client_mods()
+                
+                self.notifications.show_success(
+                    "CFG клиента очищен",
+                    "Все подключения удалены",
+                    3000
+                )
+            else:
+                self.notifications.show_info(
+                    "CFG уже пуст",
+                    "Файл конфигурации не существует",
+                    3000
+                )
+        except Exception as e:
+            self.notifications.show_error(
+                "Ошибка очистки",
+                str(e),
+                5000
+            )
+                
     def _on_connect_server_clicked(self):
-        """Подключает моды, которые отмечены на странице сервера."""
+        """Подключает моды, которые отмечены на странице сервера (только Server, не ServerSide)."""
         # Загружаем серверные подключения
         server_connections = self._load_server_connections()
         
@@ -557,11 +672,46 @@ class ClientPage(QWidget):
         # Получаем список имён модов из серверного конфига
         server_mod_names = list(server_connections.keys())
         
+        # Проверяем, есть ли ServerSide моды (они не должны подключаться на клиент)
+        serverside_mods = []
+        if os.path.exists(self.mods_status_file):
+            try:
+                with open(self.mods_status_file, 'r', encoding='utf-8') as f:
+                    mods_status = json.load(f)
+                
+                for mod_name in server_mod_names:
+                    if mod_name in mods_status and mods_status[mod_name].get('ServerSide', False):
+                        serverside_mods.append(mod_name)
+            except Exception as e:
+                print(f"Ошибка проверки ServerSide модов: {e}")
+        
+        # Фильтруем ServerSide моды
+        filtered_mod_names = [mod for mod in server_mod_names if mod not in serverside_mods]
+        
+        if not filtered_mod_names:
+            self.notifications.show_warning(
+                "Только ServerSide моды",
+                "Все серверные моды являются ServerSide и не могут быть подключены на клиенте",
+                3000
+            )
+            return
+        
+        # Если есть ServerSide моды, показываем предупреждение
+        if serverside_mods:
+            self.notifications.show_warning(
+                "ServerSide моды исключены",
+                f"{len(serverside_mods)} модов являются ServerSide и не будут подключены:\n"
+                f"{', '.join(serverside_mods[:3])}"
+                f"{'...' if len(serverside_mods) > 3 else ''}",
+                5000
+            )
+        
         # Спрашиваем подтверждение
         confirmed = CustomDialog.question(
             self,
             "Подключение модов сервера",
-            f"Будет подключено {len(server_mod_names)} модов.\n\n"
+            f"Будет подключено {len(filtered_mod_names)} модов.\n\n"
+            f"{'ServerSide моды исключены (' + str(len(serverside_mods)) + ' шт.)' if serverside_mods else ''}\n"
             "Моды будут отмечены как Client и подключены на клиенте.\n"
             "Продолжить?",
             default=True
@@ -571,7 +721,7 @@ class ClientPage(QWidget):
             return
         
         # Отмечаем моды как Client в mods_status.json
-        marked_count = self._mark_mods_as_client(server_mod_names)
+        marked_count = self._mark_mods_as_client(filtered_mod_names)
         
         if marked_count > 0:
             self.notifications.show_success(
@@ -655,49 +805,6 @@ class ClientPage(QWidget):
                 3000
             )
     
-    def _toggle_all_connections(self):
-        """Переключает состояние всех модов (подключить все/отключить все)."""
-        if not self.mod_widgets:
-            self.notifications.show_warning(
-                "Нет модов",
-                "Список модов пуст",
-                2000
-            )
-            return
-        
-        # Проверяем, все ли моды уже подключены
-        all_connected = True
-        for widget in self.mod_widgets.values():
-            if not widget.get_connection_state():
-                all_connected = False
-                break
-        
-        # Если все подключены - отключаем все, иначе - подключаем все
-        new_state = not all_connected
-        
-        # Меняем состояние всех модов
-        for widget in self.mod_widgets.values():
-            widget.set_connected_state(new_state)
-        
-        # Сохраняем состояния
-        self._save_connections()
-        
-        # Обновляем текст кнопки
-        if new_state:
-            self.toggle_all_btn.setText("Отключить все")
-            self.notifications.show_success(
-                "Все моды подключены",
-                f"Подключено {len(self.mod_widgets)} модов",
-                3000
-            )
-        else:
-            self.toggle_all_btn.setText("Подключить все")
-            self.notifications.show_info(
-                "Все моды отключены",
-                f"Отключено {len(self.mod_widgets)} модов",
-                3000
-            )
-    
     def load_client_mods(self):
         """Загружает моды с Client-статусом."""
         # Принудительно перезагружаем подключения из файла
@@ -771,9 +878,6 @@ class ClientPage(QWidget):
         
         # Отображаем
         self._display_mods()
-        
-        # Обновляем счётчик
-        self.count_label.setText(f"{len(self.client_mods)} модов")
         
         # Обновляем состояние кнопки "Подключить все"
         self._update_toggle_all_button()
@@ -947,7 +1051,6 @@ class ClientPage(QWidget):
         self.mods_list.clear()
         self.mod_widgets.clear()
         self.client_mods = []
-        self.count_label.setText("0 модов")
         self.toggle_all_btn.setText("Подключить все")
         
         item = QListWidgetItem(message)
