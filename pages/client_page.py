@@ -116,38 +116,39 @@ class ClientItemWidget(QWidget):
         sep.setFixedHeight(30)
         layout.addWidget(sep)
         
-        # Кнопка Подключить/Отключить
+        # Кнопка Подключить/Отключить (белая)
         self.connect_btn = QPushButton("Подключить")
         self.connect_btn.setFixedSize(120, 30)
         self.connect_btn.setCheckable(True)
         self.connect_btn.setStyleSheet("""
             QPushButton {
-                background-color: #2a5a2a;
-                color: #88ff88;
-                border: 1px solid #44aa44;
+                background-color: #3a3a3a;
+                color: #cccccc;
+                border: 1px solid #555555;
                 border-radius: 4px;
                 padding: 4px 12px;
                 font-size: 12px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #3a6a3a;
-                border-color: #66cc66;
+                background-color: #4a4a4a;
+                border-color: #777777;
+                color: #ffffff;
             }
             QPushButton:pressed {
-                background-color: #1a4a1a;
+                background-color: #2a2a2a;
             }
             QPushButton:checked {
-                background-color: #5a2a2a;
-                color: #ff8888;
-                border-color: #aa4444;
+                background-color: #3a6a3a;
+                color: #88ff88;
+                border-color: #44aa44;
             }
             QPushButton:checked:hover {
-                background-color: #6a3a3a;
-                border-color: #cc6666;
+                background-color: #4a7a4a;
+                border-color: #66cc66;
             }
             QPushButton:checked:pressed {
-                background-color: #4a1a1a;
+                background-color: #2a5a2a;
             }
         """)
         self.connect_btn.clicked.connect(self._on_connect_toggled)
@@ -246,16 +247,12 @@ class ClientPage(QWidget):
             try:
                 with open(self.client_connections_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    # Поддерживаем как старый формат (простой словарь), так и новый (с symlink_path)
                     if data and isinstance(data, dict):
-                        # Проверяем первый элемент, чтобы понять формат
                         first_value = next(iter(data.values())) if data else None
                         if isinstance(first_value, dict):
-                            # Новый формат: {"mod_name": {"connected": True, "symlink_path": "..."}}
                             self.connections = {mod_name: info.get("connected", False) 
                                               for mod_name, info in data.items()}
                         else:
-                            # Старый формат: {"mod_name": True/False}
                             self.connections = data
                     else:
                         self.connections = {}
@@ -270,12 +267,10 @@ class ClientPage(QWidget):
         try:
             connections = {}
             for mod_name, widget in self.mod_widgets.items():
-                # Проверяем, есть ли симлинк для этого мода
                 client_path = self._get_client_path()
                 if client_path:
                     symlink_exists = self.symlink_manager.check_symlink_exists(mod_name, client_path)
                     if widget.get_connection_state() or symlink_exists:
-                        # Если мод подключен или симлинк существует
                         symlink_path = None
                         if client_path:
                             symlink_name = f"@{mod_name}"
@@ -385,20 +380,21 @@ class ClientPage(QWidget):
         self.toggle_all_btn.setFixedSize(160, 36)
         self.toggle_all_btn.setStyleSheet("""
             QPushButton {
-                background-color: #2a4a7a;
-                color: #88bbff;
-                border: 1px solid #4466aa;
+                background-color: #3a3a3a;
+                color: #cccccc;
+                border: 1px solid #555555;
                 border-radius: 4px;
                 padding: 6px 16px;
                 font-size: 13px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #3a5a8a;
-                border-color: #6688cc;
+                background-color: #4a4a4a;
+                border-color: #777777;
+                color: #ffffff;
             }
             QPushButton:pressed {
-                background-color: #1a3a6a;
+                background-color: #2a2a2a;
             }
         """)
         self.toggle_all_btn.clicked.connect(self._toggle_all_connections)
@@ -409,17 +405,18 @@ class ClientPage(QWidget):
         self.clear_cfg_btn.setFixedSize(160, 36)
         self.clear_cfg_btn.setStyleSheet("""
             QPushButton {
-                background-color: #5a2a2a;
-                color: #ff8888;
-                border: 1px solid #aa4444;
+                background-color: #3a3a3a;
+                color: #cccccc;
+                border: 1px solid #555555;
                 border-radius: 4px;
                 padding: 6px 16px;
                 font-size: 13px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #6a3a3a;
-                border-color: #cc6666;
+                background-color: #5a2a2a;
+                color: #ff8888;
+                border-color: #aa4444;
             }
             QPushButton:pressed {
                 background-color: #4a1a1a;
@@ -431,7 +428,7 @@ class ClientPage(QWidget):
         # Кнопка "Подключить моды сервера"
         self.connect_server_btn = QPushButton()
         self.connect_server_btn.setIcon(SVGIcon.svg_to_icon(
-            SVGIcon.create_gamepad_icon("#88ff88"),
+            SVGIcon.create_gamepad_icon("#aaaaaa"),
             size=20
         ))
         self.connect_server_btn.setIconSize(QSize(20, 20))
@@ -439,9 +436,9 @@ class ClientPage(QWidget):
         self.connect_server_btn.setFixedSize(260, 36)
         self.connect_server_btn.setStyleSheet("""
             QPushButton {
-                background-color: #2a5a2a;
-                color: #88ff88;
-                border: 1px solid #44aa44;
+                background-color: #3a3a3a;
+                color: #cccccc;
+                border: 1px solid #555555;
                 border-radius: 4px;
                 padding: 6px 16px;
                 font-size: 13px;
@@ -449,11 +446,12 @@ class ClientPage(QWidget):
                 text-align: left;
             }
             QPushButton:hover {
-                background-color: #3a6a3a;
-                border-color: #66cc66;
+                background-color: #4a4a4a;
+                border-color: #777777;
+                color: #ffffff;
             }
             QPushButton:pressed {
-                background-color: #1a4a1a;
+                background-color: #2a2a2a;
             }
         """)
         self.connect_server_btn.clicked.connect(self._on_connect_server_clicked)
@@ -635,24 +633,47 @@ class ClientPage(QWidget):
                 break
         
         new_state = not all_connected
+        client_path = self._get_client_path()
         
+        if not client_path:
+            self.notifications.show_error(
+                "Путь не найден",
+                "Не задан путь к exe файлу игры в настройках",
+                5000
+            )
+            return
+        
+        # Обновляем состояние виджетов и создаём/удаляем симлинки
+        success_count = 0
         for widget in self.mod_widgets.values():
-            # Имитируем нажатие кнопки для каждого мода
-            widget.set_connected_state(new_state)
-            # Вызываем обработчик для создания/удаления симлинка
             mod_data = widget.mod_data
-            self._on_connection_toggled(mod_data, new_state)
+            # Обновляем виджет
+            widget.set_connected_state(new_state)
+            # Создаём/удаляем симлинк
+            if new_state:
+                success, _ = self.symlink_manager.create_symlink(
+                    mod_data, 
+                    client_path, 
+                    "Client"
+                )
+                if success:
+                    success_count += 1
+            else:
+                self.symlink_manager.remove_symlink(mod_data['name'], client_path)
         
-        # Обновляем текст кнопки
+        # Сохраняем состояния
+        self._save_connections()
+        
+        # Обновляем кнопку "Подключить все"
+        self._update_toggle_all_button()
+        
         if new_state:
-            self.toggle_all_btn.setText("Отключить все")
             self.notifications.show_success(
                 "Все моды подключены",
-                f"Подключено {len(self.mod_widgets)} модов",
+                f"Подключено {success_count} модов",
                 3000
             )
         else:
-            self.toggle_all_btn.setText("Подключить все")
             self.notifications.show_info(
                 "Все моды отключены",
                 f"Отключено {len(self.mod_widgets)} модов",
@@ -674,21 +695,17 @@ class ClientPage(QWidget):
             return
         
         try:
-            # Получаем путь к клиенту
             client_path = self._get_client_path()
             
-            # Удаляем все симлинки клиента
             removed_count = 0
             for mod_name in list(self.connections.keys()):
                 if self.symlink_manager.remove_symlink(mod_name, client_path):
                     removed_count += 1
             
-            # Удаляем файл конфига
             if os.path.exists(self.client_connections_file):
                 os.remove(self.client_connections_file)
                 self.connections = {}
                 
-                # Сбрасываем состояние всех виджетов
                 for widget in self.mod_widgets.values():
                     widget.set_connected_state(False)
                 
@@ -792,6 +809,16 @@ class ClientPage(QWidget):
         if not server_connections:
             return
         
+        client_path = self._get_client_path()
+        
+        if not client_path:
+            self.notifications.show_error(
+                "Путь не найден",
+                "Не задан путь к exe файлу игры в настройках",
+                5000
+            )
+            return
+        
         connected_count = 0
         not_found_count = 0
         already_connected = 0
@@ -801,8 +828,19 @@ class ClientPage(QWidget):
             if mod_name in self.mod_widgets:
                 widget = self.mod_widgets[mod_name]
                 if not widget.get_connection_state():
-                    self._on_connection_toggled(widget.mod_data, True)
-                    connected_count += 1
+                    # Обновляем виджет
+                    widget.set_connected_state(True)
+                    # Создаём симлинк
+                    mod_data = widget.mod_data
+                    success, _ = self.symlink_manager.create_symlink(
+                        mod_data, 
+                        client_path, 
+                        "Client"
+                    )
+                    if success:
+                        connected_count += 1
+                    else:
+                        widget.set_connected_state(False)
                 else:
                     already_connected += 1
             else:
@@ -833,6 +871,13 @@ class ClientPage(QWidget):
                 f"{', '.join(not_found_mods[:5])}"
                 f"{'...' if len(not_found_mods) > 5 else ''}",
                 5000
+            )
+        
+        if connected_count == 0 and already_connected == 0 and not_found_count == 0:
+            self.notifications.show_info(
+                "Нет изменений",
+                "Все серверные моды уже подключены",
+                3000
             )
     
     def load_client_mods(self):

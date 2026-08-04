@@ -128,6 +128,7 @@ class ServerItemWidget(QWidget):
         sep.setFixedHeight(30)
         layout.addWidget(sep)
         
+        # Кнопка Подключить/Отключить (белая)
         self.connect_btn = QPushButton("Подключить")
         self.connect_btn.setFixedSize(120, 30)
         self.connect_btn.setCheckable(True)
@@ -135,63 +136,65 @@ class ServerItemWidget(QWidget):
         if self.mod_type == "ServerSide":
             btn_style = """
                 QPushButton {
-                    background-color: #5a3a2a;
-                    color: #ff8844;
-                    border: 1px solid #aa6644;
+                    background-color: #3a3a3a;
+                    color: #cccccc;
+                    border: 1px solid #555555;
                     border-radius: 4px;
                     padding: 4px 12px;
                     font-size: 12px;
                     font-weight: bold;
                 }
                 QPushButton:hover {
-                    background-color: #6a4a3a;
-                    border-color: #cc8866;
+                    background-color: #4a4a4a;
+                    border-color: #777777;
+                    color: #ffffff;
                 }
                 QPushButton:pressed {
-                    background-color: #4a2a1a;
+                    background-color: #2a2a2a;
                 }
                 QPushButton:checked {
-                    background-color: #2a5a2a;
+                    background-color: #3a6a3a;
                     color: #88ff88;
                     border-color: #44aa44;
                 }
                 QPushButton:checked:hover {
-                    background-color: #3a6a3a;
+                    background-color: #4a7a4a;
                     border-color: #66cc66;
                 }
                 QPushButton:checked:pressed {
-                    background-color: #1a4a1a;
+                    background-color: #2a5a2a;
                 }
             """
         else:
             btn_style = """
                 QPushButton {
-                    background-color: #5a2a2a;
-                    color: #ff8888;
-                    border: 1px solid #aa4444;
+                    background-color: #3a3a3a;
+                    color: #cccccc;
+                    border: 1px solid #555555;
                     border-radius: 4px;
                     padding: 4px 12px;
                     font-size: 12px;
                     font-weight: bold;
                 }
                 QPushButton:hover {
-                    background-color: #6a3a3a;
-                    border-color: #cc6666;
+                    background-color: #4a4a4a;
+                    border-color: #777777;
+                    color: #ffffff;
                 }
                 QPushButton:pressed {
-                    background-color: #4a1a1a;
+                    background-color: #2a2a2a;
                 }
                 QPushButton:checked {
-                    background-color: #2a5a2a;
+                    background-color: #3a6a3a;
                     color: #88ff88;
                     border-color: #44aa44;
                 }
                 QPushButton:checked:hover {
-                    background-color: #3a6a3a;
+                    background-color: #4a7a4a;
                     border-color: #66cc66;
                 }
                 QPushButton:checked:pressed {
-                    background-color: #1a4a1a;
+                    background-color: #2a5a2a;
                 }
             """
         
@@ -361,44 +364,48 @@ class ServerPage(QWidget):
         
         header_layout.addStretch()
         
+        # Кнопка "Подключить все/Отключить все" (белая)
         self.toggle_all_btn = QPushButton("Подключить все")
         self.toggle_all_btn.setFixedSize(160, 36)
         self.toggle_all_btn.setStyleSheet("""
             QPushButton {
-                background-color: #2a4a7a;
-                color: #88bbff;
-                border: 1px solid #4466aa;
+                background-color: #3a3a3a;
+                color: #cccccc;
+                border: 1px solid #555555;
                 border-radius: 4px;
                 padding: 6px 16px;
                 font-size: 13px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #3a5a8a;
-                border-color: #6688cc;
+                background-color: #4a4a4a;
+                border-color: #777777;
+                color: #ffffff;
             }
             QPushButton:pressed {
-                background-color: #1a3a6a;
+                background-color: #2a2a2a;
             }
         """)
         self.toggle_all_btn.clicked.connect(self._toggle_all_connections)
         header_layout.addWidget(self.toggle_all_btn)
         
+        # Кнопка "Очистить CFG" (белая, при наведении красная)
         self.clear_cfg_btn = QPushButton("🗑️ Очистить CFG")
         self.clear_cfg_btn.setFixedSize(160, 36)
         self.clear_cfg_btn.setStyleSheet("""
             QPushButton {
-                background-color: #5a2a2a;
-                color: #ff8888;
-                border: 1px solid #aa4444;
+                background-color: #3a3a3a;
+                color: #cccccc;
+                border: 1px solid #555555;
                 border-radius: 4px;
                 padding: 6px 16px;
                 font-size: 13px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #6a3a3a;
-                border-color: #cc6666;
+                background-color: #5a2a2a;
+                color: #ff8888;
+                border-color: #aa4444;
             }
             QPushButton:pressed {
                 background-color: #4a1a1a;
@@ -407,6 +414,7 @@ class ServerPage(QWidget):
         self.clear_cfg_btn.clicked.connect(self._clear_server_cfg)
         header_layout.addWidget(self.clear_cfg_btn)
         
+        # Кнопка обновления с иконкой
         self.refresh_btn = QPushButton()
         self.refresh_btn.setIcon(SVGIcon.svg_to_icon(
             SVGIcon.create_refresh_icon("#aaaaaa"),
@@ -570,6 +578,7 @@ class ServerPage(QWidget):
             )
             return
         
+        # Проверяем, все ли моды уже подключены
         all_connected = True
         for widget in self.mod_widgets.values():
             if not widget.get_connection_state():
@@ -577,20 +586,47 @@ class ServerPage(QWidget):
                 break
         
         new_state = not all_connected
+        server_path = self._get_server_path()
         
+        if not server_path:
+            self.notifications.show_error(
+                "Путь не найден",
+                "Не задан путь к серверу в настройках",
+                5000
+            )
+            return
+        
+        # Обновляем состояние виджетов и создаём/удаляем симлинки
+        success_count = 0
         for widget in self.mod_widgets.values():
             mod_data = widget.mod_data
-            self._on_connection_toggled(mod_data, new_state)
+            # Обновляем виджет
+            widget.set_connected_state(new_state)
+            # Создаём/удаляем симлинк
+            if new_state:
+                success, _ = self.symlink_manager.create_symlink(
+                    mod_data, 
+                    server_path, 
+                    "Server"
+                )
+                if success:
+                    success_count += 1
+            else:
+                self.symlink_manager.remove_symlink(mod_data['name'], server_path)
+        
+        # Сохраняем состояния
+        self._save_connections()
+        
+        # Обновляем кнопку "Подключить все"
+        self._update_toggle_all_button()
         
         if new_state:
-            self.toggle_all_btn.setText("Отключить все")
             self.notifications.show_success(
                 "Все моды подключены",
-                f"Подключено {len(self.mod_widgets)} модов",
+                f"Подключено {success_count} модов",
                 3000
             )
         else:
-            self.toggle_all_btn.setText("Подключить все")
             self.notifications.show_info(
                 "Все моды отключены",
                 f"Отключено {len(self.mod_widgets)} модов",
